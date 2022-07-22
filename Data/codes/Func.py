@@ -142,8 +142,13 @@ def equilibrium_hatalgebra(pe,*data):
 def minuswelfare(tb_mat, te, varphi, tax_scenario, ParaList, df):
      #solve for equilibrium
     data = (tb_mat, te, varphi, tax_scenario, ParaList, df)
-    pe = fsolve(equilibrium_hatalgebra,1,args=data)
-    pe=pe[0]
+    pe = fsolve(equilibrium_hatalgebra,1,args=data, full_output = True)
+    if (pe[2] != 1):
+        print("pe is", pe)
+        print("tb is", tb_mat, "te is", te)
+        print("tax is", tax_scenario['tax_sce'])
+        print("opt value is", equilibrium_hatalgebra(pe[0][0], *data))
+    pe=pe[0][0]
     # print('pe='+str(pe))
     if pe-te<0 and tax_scenario['tax_sce']=='purete':
         pe=te;
@@ -332,7 +337,7 @@ def minuswelfare(tb_mat, te, varphi, tax_scenario, ParaList, df):
     if tax_scenario['tax_sce']=='puretc' or tax_scenario['tax_sce']=='EC_hybrid' :
         Vestar_prime = pe * Cestar_prime;
     if tax_scenario['tax_sce']=='PC_hybrid' or tax_scenario['tax_sce']=='EPC_hybrid':
-       Vestar_prime = (pe + tb_mat[0] - tb_mat[2]*tb_mat[0]) * CeFH_prime + pe * CeFF_prime;    
+        Vestar_prime = (pe + tb_mat[0] - tb_mat[2]*tb_mat[0]) * CeFH_prime + pe * CeFF_prime;    
     
     Vg = df['Ce'] /(1-alpha);
     Vg_prime_hat = (pe + tb_mat[0]) * Ce_hat;
@@ -727,7 +732,8 @@ def minimization(df, tb_mat, te, varphi, tax_scenario, ParaList):
         res = minimize(minuswelfare, [0, 1], method='nelder-mead', args=(te, varphi, tax_scenario, ParaList, df));
         tb_mat = res.x;
         tb=tb_mat[0];
-        prop=tb_mat[1];   
+        prop=tb_mat[1];
+        print("tax returned is", tb_mat, "flag is", res.success, "tax scenario is", tax_scenario['tax_sce'])
         if tax_scenario['tax_sce']=='puretc' or tax_scenario['tax_sce']=='puretp':
             te=tb
         elif tax_scenario['tax_sce']=='Unilateral' or tax_scenario['tax_sce']=='EC_hybrid':
