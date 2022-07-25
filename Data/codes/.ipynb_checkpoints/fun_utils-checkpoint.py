@@ -6,101 +6,6 @@ from scipy.optimize import fsolve
 from scipy.integrate import quad
 
 
-
-def opt_temp(pe, tb_mat, varphi, tax_scenario, ParaList, df):
-    alpha, theta, sigma, sigmastar, epsilonD,epsilonDstar, epsilonS, epsilonSstar, beta, gamma, logit = ParaList
-
-    #solve for equilibrium
-    if tax_scenario['tax_sce']!='Unilateral':
-        print("shouldn't be here")
-        return 0
-        
-     ## optimal values
-    # jxbar_hat =   (1 - df['jxbar']) ** (-1) / (((1 - df['jxbar']) ** (-1) - 1) + (1 + (1 - alpha) * tb_mat[0]/pe) ** (-theta) * (1 + tb_mat[0]/pe) ** ((1 - alpha) * theta));
-    jxbar_hat = pe**(-alpha*theta) * (pe+tb_mat[0])**(-(1-alpha)*theta) / ( df['jxbar'] * pe**(-alpha*theta) * (pe+tb_mat[0])**(-(1-alpha)*theta) + (1-df['jxbar']) * (pe + (1-alpha) * tb_mat[0])**(-theta));
-    j0_hat = (pe+tb_mat[0])**(-(1-alpha)*theta) / (df['jxbar'] * (pe+tb_mat[0])**(-(1-alpha)*theta) + (1-df['jxbar']) * pe**(-(1-alpha)*theta))
-    jmbar_hat = 1
-    
-    if tax_scenario['tax_sce']=='Unilateral':
-        te=varphi;
-
-    
-    jxbar_prime = jxbar_hat * df['jxbar'];
-    jmbar_prime = jmbar_hat * df['jmbar'];
-    
-    j0_prime = j0_hat * df['jxbar'];
-
-    def tempFunction(i, theta, sigmastar):
-        return (i ** ((1 + theta) / theta - 1) * (1 - i) ** ((theta - sigmastar) / theta - 1)) 
-    
-    Bfunvec1_prime = quad(tempFunction,0,j0_prime, args=(theta, sigmastar))[0];
-    Bfunvec2_prime = quad(tempFunction,0,jxbar_prime, args=(theta, sigmastar))[0];
-
-    #if te is too large, Home stop producing
-    petbte = pe + tb_mat[0] - te;
-    z = pe + tb_mat[0] >= te;
-    petbte = petbte * z;
-
-    Qe_hat = (petbte) ** epsilonS;
-    Qestar_hat = pe ** epsilonSstar;
-          
-    if logit==1:
-        epsilonS=beta*(1-gamma)/(1-gamma+gamma*petbte**beta);
-        epsilonSstar=beta*(1-gamma)/(1-gamma+gamma*pe**beta);
-        Qe_hat = (petbte)**beta/(1-gamma+gamma*(petbte)**beta);
-        Qestar_hat = pe**beta/(1-gamma+gamma*pe**beta);
- 
-    Qe_prime = df['Qe'] * Qe_hat;
-    Qestar_prime = df['Qestar'] * Qestar_hat;
-     
-    CeHH_hat = (pe + tb_mat[0]) ** (-epsilonD) * jmbar_hat ** (1 + (1 - sigma)/theta);
-    CeHH_prime = df['CeHH'] * CeHH_hat;
-       
-    
-    # CeFH_hat = (1 + (1 - sigmastar)/theta) * pe ** (-(1 - alpha) * sigmastar) * (pe + tb_mat[0]) ** (-alpha) * Bfunvec_prime/(df['jxbar'] ** (1 +1/theta)) * (1 - df['jxbar']) ** (sigmastar/theta);
-    CeFH1_hat = (pe +tb_mat[0])**(-epsilonDstar) * j0_hat**(1 + (1 - sigmastar)/theta);
-    CeFH2_hat = (1 + (1 - sigmastar)/theta) * ((1-df['jxbar'])/df['jxbar'])**(sigmastar/theta) * pe**(-epsilonDstar) * (1 + tb_mat[0]/pe)**(-alpha) * (Bfunvec2_prime - Bfunvec1_prime)/df['jxbar']**(1+(1-sigmastar)/theta);
-    CeFH1_prime = df['CeFH'] * CeFH1_hat;
-    CeFH2_prime = df['CeFH'] * CeFH2_hat;
-    CeFH_hat = CeFH1_hat + CeFH2_hat;
-    
-    if np.isnan(CeFH_hat)==True:
-        CeFH_hat=0
-    CeFH_prime =df['CeFH'] * CeFH_hat;
-    
-    
-    CeHF_hat = (pe + tb_mat[0]) ** (-epsilonD);
-    
-    CeHF_prime = df['CeHF'] * CeHF_hat;
-    
-    
-    CeFF_prime = df['CeFF'] * ((1 - jxbar_prime)/(1-df['jxbar'])) ** (1 + (1 - sigmastar)/theta) * pe ** (-epsilonDstar);
-    
-    ##
-    VgHH = df['CeHH']/(1 - alpha);
-    VgFF = df['CeFF']/(1 - alpha);
-    
-    VgFH = df['CeFH'] /(1 - alpha);
-    # VgFH_prime = VgFH * pe ** ((1 - sigmastar) * (1 - alpha)) * (1 - (1 - jxbar_prime) ** (1 + (1 - sigmastar)/theta))/ (df['jxbar'] * (1 - df['jxbar']) ** ( (1-sigmastar)/theta));
-    VgFH1_hat = (pe + tb_mat[0]) * CeFH1_hat;
-    VgFH2_hat = pe**(1 - epsilonDstar) * ((1-j0_prime)**(1+(1-sigmastar)/theta) - (1-jxbar_prime)**(1+(1-sigmastar)/theta))/ (df['jxbar']  * (1 - df['jxbar'] )**( (1-sigmastar)/theta));
-    VgFH1_prime = VgFH * VgFH1_hat;
-    VgFH2_prime = VgFH * VgFH2_hat;
-    
-    
-    diff = Qe_prime + Qestar_prime - (CeHH_prime + CeFH_prime + CeHF_prime + CeFF_prime);
-    pai_g = (pe + tb_mat[0]) * CeFH2_prime / (1 - alpha) - VgFH2_prime
-    
-    numerator = varphi * epsilonSstar * Qestar_prime - sigmastar * (1-alpha) * pai_g
-    denominator = epsilonSstar * Qestar_prime + epsilonDstar * CeFF_prime
-    diff1 = tb_mat[0] * denominator - numerator
-        
-    return abs(diff) + abs(diff1)
-     
-    
-    
-
-
 # verify, given tax and pe, whether they satisfy the two equations in paper
 def verify(tb_mat, pe, varphi, tax_scenario, ParaList, df):
     alpha, theta, sigma, sigmastar, epsilonD,epsilonDstar, epsilonS, epsilonSstar, beta, gamma, logit = ParaList
@@ -306,12 +211,18 @@ def compute_all(df, varphi, tax_scenario, ParaList):
     Vestar_prime= (pe+df['tb']) * CeFH_prime  + pe * CeFF_prime;
     Vestar_prime= (pe+df['tb']) * CeFH1_prime + pe * CeFH2_prime + pe * CeFF_prime;
     
-    Vg = df['Ce'] /(1-alpha);
-    Vg_prime_hat = (pe + df['tb']) * Ce_hat;
-    Vg_prime = Vg * Vg_prime_hat;
+    Vg = df['Ce'] /(1-alpha)
+    Vg_prime_hat = (pe + df['tb']) ** (1-epsilonD)
+    Vg_prime = Vg * Vg_prime_hat
+    print(pe + df['tb'], Vg_prime)
     
-    Vgstar = df['Cestar'] /(1-alpha);
-    Vgstar_prime = VgFH_prime + CeFF_prime/(1-alpha)* pe;
+    Vgstar = df['Cestar'] /(1-alpha)
+    Vgstar_prime = VgFH_prime + CeFF_prime/(1-alpha)* pe
+    #print(Vgstar_prime, 'first')
+    Vgstar_hat = ((df['jxbar'] / j0_prime) * (pe + df['tb'])**(-(1-alpha) * theta)) ** (-(1-sigmastar) / theta)
+    Vgstar_prime = Vgstar_hat * Vgstar
+    
+    #print(Vgstar_prime, 'second')
     
     Lg = alpha/(1-alpha) * df['Ge'];
     Lg_prime = alpha/(1-alpha) * (pe + df['tb']) * Ge_prime;
