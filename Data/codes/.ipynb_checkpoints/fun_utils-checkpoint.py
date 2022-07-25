@@ -191,7 +191,7 @@ def verify(tb_mat, pe, varphi, tax_scenario, ParaList, df):
     denominator = epsilonSstar * Qestar_prime + epsilonDstar * CeFF_prime
     diff1 = tb_mat[0] * denominator - numerator
         
-    return (diff, diff1)
+    return (abs(diff), abs(diff1))
 
 
 
