@@ -163,7 +163,7 @@ def find_opt(prevpe, prevtb, varphi, tax_scenario, ParaList, df, region):
             rettb = res1.x[1]
             #print(diff)
             break
-    if (retpe == -1):
+    if (retpe == -1): 
         print('no result found, returning placeholder (previous value)', varphi, region)
         retpe = 0.1
         rettb = 0.1

@@ -18,33 +18,33 @@ np.__version__
 pd.__version__
 
 ## scenario switch
-case=3;  # 2 means no trade in goods; 3 means trade in both energy and goods
-logit = 0; # 1 means logit estimations of supply elasticity; 0 means fixed elasticities at 0.5
+case=3  # 2 means no trade in goods; 3 means trade in both energy and goods
+logit = 0 # 1 means logit estimations of supply elasticity; 0 means fixed elasticities at 0.5
 
 ## import BAU values (seven regional scenarios in the order of US, EU, OECD, World, China, OECD plus China)
 if case==2:
-    df = pd.read_csv("../Data/output/BaselineCarbon_2015_noTradeinGoods.csv",index_col=['region_scenario','regionbase'],header='infer')
+    df = pd.read_csv("../output/BaselineCarbon_2015_noTradeinGoods.csv",index_col=['region_scenario','regionbase'],header='infer')
 elif case==3:
-    df = pd.read_csv("../Data/output/BaselineCarbon_2015.csv", index_col=['region_scenario','regionbase'],header='infer')
-df['jxbar']=df['CeFH']/(df['CeFH'] + df['CeFF']);
-df['jmbar']=df['CeHH']/(df['CeHH'] + df['CeHF']);
+    df = pd.read_csv("../output/BaselineCarbon_2015.csv", index_col=['region_scenario','regionbase'],header='infer')
+df['jxbar']=df['CeFH']/(df['CeFH'] + df['CeFF'])
+df['jmbar']=df['CeHH']/(df['CeHH'] + df['CeHF'])
 
 ## choose which regional scenario to run (runs all if not executed)
     #df=df.drop([1,2,4,5,6,7])  
 
 ## parameter values
-alpha = 0.85;           # labor share parameter in manufacturing
-theta = 4;              # scopevec for comparative advantage
-sigma = 1;      # elasticity of demand for each individual manufactured good j at Home
-sigmastar = 1;  # elasticity of demand for each individual manufactured good j at Foreign
-epsilonD = alpha + (1 - alpha) * sigma;  #Home's elasticity of demand for embodied energy
-epsilonDstar = alpha + (1 - alpha) * sigmastar;  #Foreign's elasticity of demand for embodied energy
+alpha = 0.85  # labor share parameter in manufacturing
+theta = 4  # scopevec for comparative advantage
+sigma = 1      # elasticity of demand for each individual manufactured good j at Home
+sigmastar = 1  # elasticity of demand for each individual manufactured good j at Foreign
+epsilonD = alpha + (1 - alpha) * sigma  #Home's elasticity of demand for embodied energy
+epsilonDstar = alpha + (1 - alpha) * sigmastar  #Foreign's elasticity of demand for embodied energy
 # beta = 2.274853;
 # gamma= 0.784877595;
-beta=1.892412;
-gamma=0.807998928;
-epsilonS = 0.5;  #Homes's energy supply elasticity: beta/(1 - beta)
-epsilonSstar = 0.5;  #Foreign's energy supply elasticity: betastar/(1 - betastar)
+beta=1.892412
+gamma=0.807998928
+epsilonS = 0.5  #Homes's energy supply elasticity: beta/(1 - beta)
+epsilonSstar = 0.5  #Foreign's energy supply elasticity: betastar/(1 - betastar)
 
 
 
@@ -53,14 +53,14 @@ tax_scenario= pd.DataFrame({'tax_sce': ['Baseline','Unilateral','purete','puretc
 def cases(tax_scenario, alpha, theta, sigma, sigmastar, epsilonD,epsilonDstar, epsilonS,epsilonSstar, beta, gamma, logit):
     ParaList = (alpha, theta, sigma, sigmastar, epsilonD,epsilonDstar, epsilonS,epsilonSstar, beta, gamma, logit)
     # varphilist = np.arange (1.6,2.5,0.1) # marginal damages
-    varphilist = np.arange (0,20.1,0.2) # marginal damages
+    varphilist = np.arange (0,20.1,0.1) # marginal damages
 
     # use for quick test: varphilist = [2] or varphilist = np.arange (1.7,2.5,0.1)
-    varphilist = [2]
+    #varphilist = [2]
     output=[]
     for varphi in varphilist:    
-        te = 0; #initial value of extraction tax for iteration
-        tb_mat = [0, 1];  #initial value of  border adjustment and proportion of it (prop is mainly used for PC hybrid)
+        te = 0 #initial value of extraction tax for iteration
+        tb_mat = [0, 1]  #initial value of  border adjustment and proportion of it (prop is mainly used for PC hybrid)
 
         ## calculate for optimal taxes by maximizing welfare
         tax_df=df.apply(minimization, axis=1, raw=False, args=(tb_mat, te, varphi, tax_scenario, ParaList))
@@ -94,11 +94,11 @@ Outcomes = pd.concat(output_list, axis=0, join='outer', ignore_index=False, keys
 Outcomes.reset_index(level=0, inplace=True)
 
 if epsilonS == 0.5 and epsilonSstar == 0.5:
-    Outcomes.to_csv('output/output_case{0}.csv'.format(case), header=True) 
+    Outcomes.to_csv('../output_theta{0}/output_case{0}.csv'.format(theta, case), header=True)
 elif epsilonS == 0.5 and epsilonSstar == 2:
-    Outcomes.to_csv('output/output_case{0}_D_2.csv'.format(case), header=True) 
+    Outcomes.to_csv('../output_theta{0}/output_case{0}_D_2.csv'.format(theta, case), header=True)
 elif epsilonS == 2 and epsilonSstar == 0.5:
-    Outcomes.to_csv('output/output_case{0}_2_D.csv'.format(case), header=True) 
+    Outcomes.to_csv('../output_theta{0}/output_case{0}_2_D.csv'.format(theta,case), header=True)
 
 
 
