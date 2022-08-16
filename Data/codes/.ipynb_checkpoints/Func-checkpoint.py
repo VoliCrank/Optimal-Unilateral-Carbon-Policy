@@ -142,13 +142,8 @@ def equilibrium_hatalgebra(pe,*data):
 def minuswelfare(tb_mat, te, varphi, tax_scenario, ParaList, df):
      #solve for equilibrium
     data = (tb_mat, te, varphi, tax_scenario, ParaList, df)
-    pe = fsolve(equilibrium_hatalgebra,1,args=data, full_output = True)
-    #if (pe[2] != 1):
-    #    print("pe is", pe)
-    #    print("tb is", tb_mat, "te is", te)
-    #    print("tax is", tax_scenario['tax_sce'])
-    #    print("opt value is", equilibrium_hatalgebra(pe[0][0], *data))
-    pe=pe[0][0]
+    pe = fsolve(equilibrium_hatalgebra,1,args=data)
+    pe=pe[0]
     # print('pe='+str(pe))
     if pe-te<0 and tax_scenario['tax_sce']=='purete':
         pe=te;
@@ -337,7 +332,7 @@ def minuswelfare(tb_mat, te, varphi, tax_scenario, ParaList, df):
     if tax_scenario['tax_sce']=='puretc' or tax_scenario['tax_sce']=='EC_hybrid' :
         Vestar_prime = pe * Cestar_prime;
     if tax_scenario['tax_sce']=='PC_hybrid' or tax_scenario['tax_sce']=='EPC_hybrid':
-        Vestar_prime = (pe + tb_mat[0] - tb_mat[2]*tb_mat[0]) * CeFH_prime + pe * CeFF_prime;    
+       Vestar_prime = (pe + tb_mat[0] - tb_mat[2]*tb_mat[0]) * CeFH_prime + pe * CeFF_prime;    
     
     Vg = df['Ce'] /(1-alpha);
     Vg_prime_hat = (pe + tb_mat[0]) * Ce_hat;
@@ -732,8 +727,7 @@ def minimization(df, tb_mat, te, varphi, tax_scenario, ParaList):
         res = minimize(minuswelfare, [0, 1], method='nelder-mead', args=(te, varphi, tax_scenario, ParaList, df));
         tb_mat = res.x;
         tb=tb_mat[0];
-        prop=tb_mat[1];
-        #print("tax returned is", tb_mat, "flag is", res.success, "tax scenario is", tax_scenario['tax_sce'])
+        prop=tb_mat[1];   
         if tax_scenario['tax_sce']=='puretc' or tax_scenario['tax_sce']=='puretp':
             te=tb
         elif tax_scenario['tax_sce']=='Unilateral' or tax_scenario['tax_sce']=='EC_hybrid':
@@ -1091,14 +1085,7 @@ def callback(df, varphi, tax_scenario, ParaList):
     if tax_scenario['tax_sce']=='PC_hybrid' or tax_scenario['tax_sce']=='EPC_hybrid':
         Lgstar_prime = alpha/(1-alpha) * (pe + df['prop']*df['tb']) * CeHF_prime + alpha/(1-alpha) * pe * CeFF_prime;
 
-    delta_Le = (epsilonS/(epsilonS + 1)) * df['Qe'] * (petbte**(epsilonS + 1) - 1);
-    delta_Lestar = (epsilonSstar/(epsilonSstar + 1)) * df['Qestar'] * (pe**(epsilonSstar + 1) - 1);
-    
-    def Func(a, beta, gamma):
-        return (((1-gamma)*a**beta)/(1-gamma+gamma*a**beta)**2)
-    if logit==1:
-        delta_Le = beta * df['Qe'] * quad(Func,1,petbte, args=(beta, gamma))[0];
-        delta_Lestar = beta * df['Qestar'] * quad(Func,1,pe, args=(beta, gamma))[0];
+
     
     leakage1 = -(Qestar_prime - df['Qestar'])/(Qeworld_prime - df['Qeworld']);
     leakage2 = -(Gestar_prime - df['Gestar'])/(Qeworld_prime - df['Qeworld']);
@@ -1108,37 +1095,10 @@ def callback(df, varphi, tax_scenario, ParaList):
     chg_consumption=Cestar_prime-df['Cestar'];
     chg_Qeworld=Qeworld_prime-df['Qeworld'];
 
-    # delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
-    #        + sigma/(sigma-1)* (Vg_prime-Vg) + sigmastar/(sigmastar-1)* (Vgstar_prime-Vgstar) \
-    #        - varphi * (Qeworld_prime - df['Qeworld']);
-       
-    delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
-           + Vg * (alpha - 1) * math.log(pe + df['tb']) + Vgstar * (1/theta) * math.log(df['jxbar']/j0_prime * (pe+df['tb'])**(-(1-alpha)*theta)) \
-           - varphi * (Qeworld_prime - df['Qeworld']);
-    # print("pe")
-    # print(pe)
-    # print("tb")
-    # print(df['tb'])
-    if pe<0:
-        pe=0.0001
-    if tax_scenario['tax_sce']=='puretc' or tax_scenario['tax_sce']=='purete' or tax_scenario['tax_sce']=='EC_hybrid':
-        delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
-           + Vg * (alpha - 1) * math.log(pe +  df['tb']) + Vgstar * (alpha - 1) * math.log(pe) \
-           - varphi * (Qeworld_prime - df['Qeworld']);
+    delta_Le, delta_Lestar, delta_U, pe = method_name(Lg, Lg_prime, Lgstar, Lgstar_prime, Qeworld_prime, Vg, Vgstar, df,
+                                                      j0_prime, jmbar_prime, jxbar_prime, pe, petbte, tax_scenario,
+                                                      varphi)
 
-    if tax_scenario['tax_sce']=='puretp' or tax_scenario['tax_sce']=='EP_hybrid':
-        delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
-               +  Vg * ((alpha - 1) * math.log(pe + df['tb']) + 1/theta * math.log(df['jmbar']/jmbar_prime)) \
-               +  Vgstar * ((alpha - 1) * math.log(pe + df['tb']) + 1/theta * math.log(df['jxbar']/jxbar_prime)) \
-               - varphi * (Qeworld_prime - df['Qeworld']);
-
-    if  tax_scenario['tax_sce']=='PC_hybrid' or tax_scenario['tax_sce']=='EPC_hybrid':
-        delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
-               +  Vg * ((alpha - 1) * math.log(pe + df['tb']) + 1/theta * math.log(df['jmbar']/jmbar_prime)) \
-               +  Vgstar * ((alpha - 1) * math.log(pe + df['tb'] - df['prop2']*df['tb']) + 1/theta * math.log(df['jxbar']/jxbar_prime)) \
-               -  varphi * (Qeworld_prime - df['Qeworld']);
-    
-    
     welfare = delta_U/Vg*100;  
     welfare_noexternality = (delta_U + varphi * (Qeworld_prime - df['Qeworld']) )/Vg*100;  
     
@@ -1157,6 +1117,49 @@ def callback(df, varphi, tax_scenario, ParaList):
                       'leakage3': leakage3, 'chg_extraction': chg_extraction, 'chg_production': chg_production, \
                       'chg_consumption': chg_consumption,'chg_Qeworld':chg_Qeworld, 'pai_g': pai_g, \
                       'subsidy_ratio': subsidy_ratio, 'welfare':welfare, 'welfare_noexternality':welfare_noexternality}))
+
+
+def method_name(Lg, Lg_prime, Lgstar, Lgstar_prime, Qeworld_prime, Vg, Vgstar, df, j0_prime, jmbar_prime, jxbar_prime,
+                pe, petbte, tax_scenario, varphi):
+    delta_Le = (epsilonS / (epsilonS + 1)) * df['Qe'] * (petbte ** (epsilonS + 1) - 1);
+    delta_Lestar = (epsilonSstar / (epsilonSstar + 1)) * df['Qestar'] * (pe ** (epsilonSstar + 1) - 1);
+
+    def Func(a, beta, gamma):
+        return (((1 - gamma) * a ** beta) / (1 - gamma + gamma * a ** beta) ** 2)
+
+    if logit == 1:
+        delta_Le = beta * df['Qe'] * quad(Func, 1, petbte, args=(beta, gamma))[0];
+        delta_Lestar = beta * df['Qestar'] * quad(Func, 1, pe, args=(beta, gamma))[0];
+    # delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
+    #        + sigma/(sigma-1)* (Vg_prime-Vg) + sigmastar/(sigmastar-1)* (Vgstar_prime-Vgstar) \
+    #        - varphi * (Qeworld_prime - df['Qeworld']);
+    delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
+              + Vg * (alpha - 1) * math.log(pe + df['tb']) + Vgstar * (1 / theta) * math.log(
+        df['jxbar'] / j0_prime * (pe + df['tb']) ** (-(1 - alpha) * theta)) \
+              - varphi * (Qeworld_prime - df['Qeworld']);
+    # print("pe")
+    # print(pe)
+    # print("tb")
+    # print(df['tb'])
+    if pe < 0:
+        pe = 0.0001
+    if tax_scenario['tax_sce'] == 'puretc' or tax_scenario['tax_sce'] == 'purete' or tax_scenario[
+        'tax_sce'] == 'EC_hybrid':
+        delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
+                  + Vg * (alpha - 1) * math.log(pe + df['tb']) + Vgstar * (alpha - 1) * math.log(pe) \
+                  - varphi * (Qeworld_prime - df['Qeworld']);
+    if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
+        delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
+                  + Vg * ((alpha - 1) * math.log(pe + df['tb']) + 1 / theta * math.log(df['jmbar'] / jmbar_prime)) \
+                  + Vgstar * ((alpha - 1) * math.log(pe + df['tb']) + 1 / theta * math.log(df['jxbar'] / jxbar_prime)) \
+                  - varphi * (Qeworld_prime - df['Qeworld']);
+    if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
+        delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
+                  + Vg * ((alpha - 1) * math.log(pe + df['tb']) + 1 / theta * math.log(df['jmbar'] / jmbar_prime)) \
+                  + Vgstar * ((alpha - 1) * math.log(pe + df['tb'] - df['prop2'] * df['tb']) + 1 / theta * math.log(
+            df['jxbar'] / jxbar_prime)) \
+                  - varphi * (Qeworld_prime - df['Qeworld']);
+    return delta_Le, delta_Lestar, delta_U, pe
 
 
 
