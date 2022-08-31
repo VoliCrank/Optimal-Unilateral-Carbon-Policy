@@ -414,10 +414,8 @@ def comp_mleak(pe, tb_mat, jvals, CeHH_prime, CeFH_prime, ParaList, tax_scenario
     if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
         re = (pe + tb_mat[0] - tb_mat[1] * tb_mat[0]) / pe
 
-    tejxj = (1 + (1 - sigmastar) / theta) * df['CeFH'] * jxbar_hat ** ((1 - sigmastar) / theta) * (pe * re) ** (
-        -epsilonDstar) / df['jxbar']
-    ejyj = (1 + (1 - sigmastar) / theta) * df['CeHH'] * jmbar_hat ** ((1 - sigma) / theta) * (pe * re) ** (-epsilonD) / \
-           df['jmbar']
+    tejxj = (1 + (1 - sigmastar) / theta) * df['CeFH'] * jxbar_hat ** ((1 - sigmastar) / theta) * (pe * re) ** (-epsilonDstar) / df['jxbar']
+    ejyj = (1 + (1 - sigmastar) / theta) * df['CeHH'] * jmbar_hat ** ((1 - sigma) / theta) * (pe * re) ** (-epsilonD) / df['jmbar']
     djxdre = -(theta * (1 - alpha)) * jxbar_prime * (1 - jxbar_prime) / re
     djmdre = -(theta * (1 - alpha)) * jmbar_prime * (1 - jmbar_prime) / re
     
@@ -487,7 +485,7 @@ def comp_diff(consvals, jvals, Ge_prime, Gestar_prime, Qe_prime, Qestar_prime, Q
         numerator = varphi * epsilonSw * Qeworld_prime
         denominator = epsilonSw * Qeworld_prime + epsilonGstar * Gestar_prime + leak * epsilonG * Ge_prime
         # border adjustment = (1-leakage) consumption wedge
-        diff1 = tb_mat[0] - (1 - leak) * numerator / denominator
+        diff1 = tb_mat[0] * denominator - (1 - leak) * numerator
         
     if tax_scenario['tax_sce'] == 'EC_hybrid':
         numerator = varphi * epsilonSstar * Qestar_prime
