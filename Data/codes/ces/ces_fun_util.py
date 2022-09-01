@@ -28,7 +28,7 @@ def computejbar(ParaList, pe, te, varphi, tb_mat, tax_scenario, df):
     # unpack parameters
     alpha, theta, sigma, sigmastar, epsilonD, epsilonDstar, epsilonS, epsilonSstar, beta, gamma, logit = ParaList
 
-    ## hat values for jxbar, j0bar and jmbar
+    ## hat values for jxbar, j0 and jmbar
     jxbar_hat = pe ** (-alpha * theta) * (pe + tb_mat[0]) ** (-(1 - alpha) * theta) / (
             df['jxbar'] * pe ** (-alpha * theta) * (pe + tb_mat[0]) ** (-(1 - alpha) * theta) + (
             1 - df['jxbar']) * (pe + (1 - alpha) * tb_mat[0]) ** (-theta))
@@ -42,7 +42,7 @@ def computejbar(ParaList, pe, te, varphi, tb_mat, tax_scenario, df):
     Cex = df['CeFH']
     Ceystar = df['CeFF']
     jxbar_hat =  g(pe + tb_mat[0])**(-theta) * Cex / (g(pe+tb_mat[0])**(-theta) * Cex + (g(pe) + tb_mat[0] * gprime(pe))**(-theta) * Ceystar) / df['jxbar']
-    j0bar_hat = g(pe + tb_mat[0])**(-theta) * Cex / (g(pe+tb_mat[0])**(-theta) * Cex + (g(pe))**(-theta) * Ceystar) / df['jxbar']
+    j0_hat = g(pe + tb_mat[0])**(-theta) * Cex / (g(pe+tb_mat[0])**(-theta) * Cex + (g(pe))**(-theta) * Ceystar) / df['jxbar'] 
 
     if tax_scenario['tax_sce'] == 'Unilateral':
         te = varphi
@@ -150,18 +150,19 @@ def comp_ce(pe, tb_mat, jvals, ParaList, df, tax_scenario):
     # compute incomplete beta values
     Bfunvec1_prime, Bfunvec2_prime = imcomp_betas(j0_prime, jxbar_prime, theta, sigmastar)
     
-    # Ce^y, home domestic production for domestic consumption
-    CeHH_hat = (pe + tb_mat[0]) ** (-epsilonD) * jmbar_hat ** (1 + (1 - sigma) / theta)
-    CeHH_prime = df['CeHH'] * CeHH_hat
-    
-    Cey_prime = gprime(pe + tb_mat[0]) * g(pe+tb_mat[0])**(-sigma) * df['CeHH'] / (g(1)**(-sigma) * gprime(1))
+    #### new Cey
+    Cey_prime = gprime(pe + tb_mat[0]) * g(pe+tb_mat[0])**(-sigma) * df['CeHH'] / (g(1)**(-sigma) * gprime(1)) 
     CeHH_prime = Cey_prime
 
-    # Ce^x, home export
-    CeFH1_hat = (pe + tb_mat[0]) ** (-epsilonDstar) * j0_hat ** (1 + (1 - sigmastar) / theta)
-    CeFH2_hat = (1 + (1 - sigmastar) / theta) * ((1 - df['jxbar']) / df['jxbar']) ** (sigmastar / theta) * pe ** (
-        -epsilonDstar) * (1 + tb_mat[0] / pe) ** (-alpha) * (Bfunvec2_prime - Bfunvec1_prime) / df['jxbar'] ** (
-                        1 + (1 - sigmastar) / theta)
+    #### new Cex1, Cex2
+    Cex1_hat = gprime(pe + tb_mat[0]) * g(pe+tb_mat[0])**(-sigmastar) / (g(1)**(-sigmastar) * gprime(1)) * (j0_prime / df['jxbar']) ** (1+ (1-sigmastar)/theta) 
+    const = g(pe)**(-sigmastar) * gprime(pe + tb_mat[0]) / (g(1)**(-sigmastar) * gprime(1))
+    frac = ((1-df['jxbar'])/df['jxbar'])**(sigmastar/theta) * (theta + 1 - sigmastar)/theta
+    jterm = 1/ df['jxbar']**(1+(1-sigmastar)/theta)
+    Cex2_hat = const * frac * jterm * (Bfunvec2_prime- Bfunvec1_prime) 
+    
+    CeFH1_hat = Cex1_hat
+    CeFH2_hat = Cex2_hat
     CeFH1_prime = df['CeFH'] * CeFH1_hat
     CeFH2_prime = df['CeFH'] * CeFH2_hat
     CeFH_hat = CeFH1_hat + CeFH2_hat
@@ -183,9 +184,7 @@ def comp_ce(pe, tb_mat, jvals, ParaList, df, tax_scenario):
     CeFH_prime = df['CeFH'] * CeFH_hat
 
     # Ce^m, home imports
-    CeHF_hat = (pe + tb_mat[0]) ** (-epsilonD)
-    
-    Cem_hat = gprime(pe + tb_mat[0]) * g(pe + tb_mat[0])**(-sigma) / (g(1)**(-sigmastar) * gprime(1))
+    Cem_hat = gprime(pe + tb_mat[0]) * g(pe + tb_mat[0])**(-sigma) / (g(1)**(-sigmastar) * gprime(1)) 
     CeHF_hat = Cem_hat
     
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
@@ -200,7 +199,8 @@ def comp_ce(pe, tb_mat, jvals, ParaList, df, tax_scenario):
     CeHF_prime = Cem_prime
     
     # Ce^y*, foreign production for foreign consumption
-    CeFF_prime = gprime(pe) * g(pe)**(-sigmastar) * df['CeFF'] * ((1-jxbar_prime)/ (1-df['jxbar']))**(1+(1-sigmastar)/theta) / (g(1)**(-sigmastar) * gprime(1))
+    Ceystar_prime = gprime(pe) * g(pe)**(-sigmastar) * df['CeFF'] * ((1-jxbar_prime)/ (1-df['jxbar']))**(1+(1-sigmastar)/theta) / (g(1)**(-sigmastar) * gprime(1))
+    CeFF_prime = Ceystar_prime
 
     return CeHH_prime, CeFH1_prime, CeFH2_prime, CeFH_prime, CeHF_prime, CeFF_prime, CeFH_hat, CeFH1_hat, CeHF_hat
 
@@ -228,6 +228,12 @@ def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, ParaList):
     VgFH1_prime = VgFH * VgFH1_hat
     VgFH2_prime = VgFH * VgFH2_hat
     VgFH_hat = VgFH1_hat + VgFH2_hat
+    
+    ## new VgFH (Vgx2)
+    pterm = gprime(pe) * g(pe)**(-sigmastar) * pe * df['CeFH'] / (g(1)**(-sigmastar) * gprime(1) * g(1)**(-sigmastar) * gprime(1))
+    num = (1-j0_prime)**((theta + 1 - sigmastar)/theta) - (1-jxbar_prime)**((theta + 1 - sigmastar) / theta)
+    denum = df['jxbar'] * (1-df['jxbar'])**((1-sigmastar)/theta)
+    VgFH2_prime = pterm * num / denum
 
     if tax_scenario['Base'] == 1:
         VgFH_hat = pe * CeFH_hat
