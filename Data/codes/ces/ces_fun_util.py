@@ -31,6 +31,7 @@ def gprime(p, rho = rho, alpha = 0.15):
 def k(p):
     return gprime(p) / (g(p)-p*gprime(p))
 
+## Dstar(p, sigmastar) corresponds to D^* in paper while Dstar(p, sigma) corresponds to D in paper
 def Dstar(p, sigmastar):
     return gprime(p) * g(p)**(-sigmastar)
 
@@ -82,10 +83,9 @@ def computejbar(ParaList, pe, te, varphi, tb_mat, tax_scenario, df):
 
     if tax_scenario['tax_sce'] == 'puretp':
         te = tb_mat[0]
-        jxbar_hat = (1 - df['jxbar']) ** (-1) / (
-                (1 - df['jxbar']) ** (-1) - 1 + (1 + tb_mat[0] / pe) ** (theta * (1 - alpha)))
-        jmbar_hat = (1 + ((1 - df['jmbar']) ** (-1) - 1) ** (-1)) / (
-                1 + ((1 - df['jmbar']) ** (-1) - 1) ** (-1) * (1 + tb_mat[0] / pe) ** (theta * (1 - alpha)))
+        ve = pe+tb_mat[0]
+        jmbar_hat = df['CeHH'] * (g(pe) / g(ve))**theta / (df['CeHH'] * (g(pe) / g(ve))**theta + df['CeHF']) / df['jmbar']
+        jxbar_hat = df['CeFH'] * (g(pe) / g(ve))**theta / (df['CeFH'] * (g(pe) / g(ve))**theta + df['CeFF']) / df['jxbar']
         tb_mat[1] = 1
 
     if tax_scenario['tax_sce'] == 'EC_hybrid':
@@ -96,28 +96,21 @@ def computejbar(ParaList, pe, te, varphi, tb_mat, tax_scenario, df):
 
     if tax_scenario['tax_sce'] == 'PC_hybrid':
         te = tb_mat[0]
-        jxbar_hat = (1 - df['jxbar']) ** (-1) / (
-                (1 - df['jxbar']) ** (-1) - 1 + (1 + (tb_mat[0] - tb_mat[1] * tb_mat[0]) / pe) ** (
-                theta * (1 - alpha)))
-        jmbar_hat = (1 + ((1 - df['jmbar']) ** (-1) - 1) ** (-1)) / (
-                1 + ((1 - df['jmbar']) ** (-1) - 1) ** (-1) * ((pe + tb_mat[0]) / (pe + tb_mat[0])) ** (
-                theta * (1 - alpha)))
+        ve = pe + tb_mat[0] - tb_mat[0] * tb_mat[1]
+        jmbar_hat = 1
+        jxbar_hat = df['CeFH'] * (g(pe) / g(ve))**theta / (df['CeFH'] * (g(pe) / g(ve))**theta + df['CeFF']) / df['jxbar']
 
     if tax_scenario['tax_sce'] == 'EP_hybrid':
         te = tb_mat[1]
-        jxbar_hat = (1 - df['jxbar']) ** (-1) / (
-                (1 - df['jxbar']) ** (-1) - 1 + (1 + tb_mat[0] / pe) ** (theta * (1 - alpha)))
-        jmbar_hat = (1 + ((1 - df['jmbar']) ** (-1) - 1) ** (-1)) / (
-                1 + ((1 - df['jmbar']) ** (-1) - 1) ** (-1) * (1 + tb_mat[0] / pe) ** (theta * (1 - alpha)))
+        ve = pe+tb_mat[0]
+        jmbar_hat = 1
+        jxbar_hat = df['CeFH'] * (g(pe) / g(ve))**theta / (df['CeFH'] * (g(pe) / g(ve))**theta + df['CeFF']) / df['jxbar']
 
     if tax_scenario['tax_sce'] == 'EPC_hybrid':
         te = varphi
-        jxbar_hat = (1 - df['jxbar']) ** (-1) / (
-                (1 - df['jxbar']) ** (-1) - 1 + (1 + (tb_mat[0] - tb_mat[1] * tb_mat[0]) / pe) ** (
-                theta * (1 - alpha)))
-        jmbar_hat = (1 + ((1 - df['jmbar']) ** (-1) - 1) ** (-1)) / (
-                1 + ((1 - df['jmbar']) ** (-1) - 1) ** (-1) * ((pe + tb_mat[0]) / (pe + tb_mat[0])) ** (
-                theta * (1 - alpha)))
+        ve = pe + tb_mat[0] - tb_mat[0] * tb_mat[1]
+        jmbar_hat = 1
+        jxbar_hat = df['CeFH'] * (g(pe) / g(ve))**theta / (df['CeFH'] * (g(pe) / g(ve))**theta + df['CeFF']) / df['jxbar']
         
 
 
@@ -171,11 +164,12 @@ def comp_ce(pe, tb_mat, jvals, ParaList, df, tax_scenario):
     # compute incomplete beta values
     Bfunvec1_prime, Bfunvec2_prime = imcomp_betas(j0_prime, jxbar_prime, theta, sigmastar)
     
-    #### new Cey
-    Cey_prime = gprime(pe + tb_mat[0]) * g(pe+tb_mat[0])**(-sigma) * df['CeHH'] / (g(1)**(-sigma) * gprime(1)) 
+    #### new Cey, jmbar_hat = 1 if not pure tp or EP hybrid
+    Cey_prime = gprime(pe + tb_mat[0]) * g(pe+tb_mat[0])**(-sigma) * df['CeHH'] / (g(1)**(-sigma) * gprime(1)) * (jmbar_hat) **(1+(1-sigma)/theta)
 
     #### new Cex1, Cex2
     Cex1_hat = gprime(pe + tb_mat[0]) * g(pe+tb_mat[0])**(-sigmastar) / (g(1)**(-sigmastar) * gprime(1)) * (j0_prime / df['jxbar']) ** (1+ (1-sigmastar)/theta) 
+    
     const = g(pe)**(-sigmastar) * gprime(pe + tb_mat[0]) / (g(1)**(-sigmastar) * gprime(1))
     frac = ((1-df['jxbar'])/df['jxbar'])**(sigmastar/theta) * (theta + 1 - sigmastar)/theta
     jterm = 1/ df['jxbar']**(1+(1-sigmastar)/theta)
@@ -186,19 +180,16 @@ def comp_ce(pe, tb_mat, jvals, ParaList, df, tax_scenario):
     Cex_hat = Cex1_hat + Cex2_hat
     
     if tax_scenario['Base'] == 1:
-        Cex_hat = pe ** (-epsilonDstar) * jxbar_hat ** (1 + (1 - sigmastar) / theta)
         Cex_hat = gprime(pe) * g(pe)**(-sigmastar) / (g(1)**(-sigmastar) * gprime(1)) * (jxbar_prime / df['jxbar']) ** (1+ (1-sigmastar)/theta) 
 
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
-        Cex_hat = (pe + tb_mat[0]) ** (-epsilonDstar) * jxbar_hat ** (1 + (1 - sigmastar) / theta)
+        ve = pe + tb_mat[0] 
+        Cex_hat = Dstar(ve, sigmastar) / Dstar(1,sigmastar) * jxbar_hat ** (1 + (1 - sigmastar) / theta)
 
     if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
-        Cex_hat = (pe + tb_mat[0] - tb_mat[1] * tb_mat[0]) ** (-epsilonDstar) * jxbar_hat ** (
-                1 + (1 - sigmastar) / theta)
+        ve = pe + tb_mat[0] - tb_mat[1] * tb_mat[0] 
+        Cex_hat = Dstar(ve, sigmastar) / Dstar(1,sigmastar) * jxbar_hat ** (1 + (1 - sigmastar) / theta)
 
-    #if np.isnan(Cex_hat) == True:
-    #    Cex_hat = 0
-     
     # final value for Ce^x
     Cex_prime = df['CeFH'] * Cex_hat
 
@@ -206,11 +197,7 @@ def comp_ce(pe, tb_mat, jvals, ParaList, df, tax_scenario):
     Cem_hat = gprime(pe + tb_mat[0]) * g(pe + tb_mat[0])**(-sigma) / (g(1)**(-sigma) * gprime(1)) 
     
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
-        Cem_hat = (pe) ** (-epsilonD) * ((1 - jmbar_prime) / (1 - df['jmbar'])) ** (1 + (1 - sigma) / theta)
-
-    if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
-        Cem_hat = (pe + tb_mat[0]) ** (-epsilonD) * ((1 - jmbar_prime) / (1 - df['jmbar'])) ** (
-                1 + (1 - sigma) / theta)
+        Cem_hat = Dstar(pe, sigma) / Dstar(1,sigma) * ((1 - jmbar_prime) / (1 - df['jmbar'])) ** (1 + (1 - sigma) / theta)
 
     # final value for Ce^m
     Cem_prime = df['CeHF'] * Cem_hat
@@ -245,6 +232,7 @@ def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, ParaList):
     
     ## new Vgx (Vgx)
     Vgx1_prime = (g(pe+tb_mat[0]) / g(1))**(1-sigmastar) * j0_hat**(1+(1-sigmastar)/theta) * (g(1)/gprime(1)) * df['CeFH']
+    
     pterm = gprime(pe) * g(pe)**(-sigmastar) * pe * df['CeFH'] / (g(1)**(-sigmastar) * gprime(1) * g(1)**(-sigmastar) * gprime(1))
     num = (1-j0_prime)**((theta + 1 - sigmastar)/theta) - (1-jxbar_prime)**((theta + 1 - sigmastar) / theta)
     denum = df['jxbar'] * (1-df['jxbar'])**((1-sigmastar)/theta)
@@ -259,9 +247,6 @@ def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, ParaList):
 
     if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
         Vgx_hat = (pe + tb_mat[0] - tb_mat[1] * tb_mat[0]) * Cex_hat
-
-    #if np.isnan(Vgx_hat) == True:
-    #    Vgx_hat = 0
         
     # final value of home export of good    
     Vgx_prime = Vgx * Vgx_hat
@@ -454,7 +439,7 @@ def comp_chg(df, Qestar_prime, Gestar_prime, Cestar_prime, Qeworld_prime):
 ##        Cex_prime (energy in home export), ParaList, tax_scenario, df
 ## output: marginal leakage (-(partial Gestar / partial re) / (partial Ge / partial re))
 ##         for different tax scenarios.
-def comp_mleak(pe, tb_mat, jvals, Cey_prime, Cex_prime, Ceystar_prime, ParaList, tax_scenario, df):
+def comp_mleak(pe, tb_mat, jvals, Cey_prime,Cem_prime, Cex_prime, Ceystar_prime, ParaList, tax_scenario, df):
     alpha, theta, sigma, sigmastar, epsilonD, epsilonDstar, epsilonS, epsilonSstar, beta, gamma, logit = ParaList
     j0_hat, j0_prime, jxbar_hat, jxbar_prime, jmbar_hat, jmbar_prime = jvals
 
@@ -462,30 +447,17 @@ def comp_mleak(pe, tb_mat, jvals, Cey_prime, Cex_prime, Ceystar_prime, ParaList,
     ve = (pe + tb_mat[0])
     if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
         ve = (pe + tb_mat[0] - tb_mat[1] * tb_mat[0])
-        
-    ## re is different for puretp/EP and PC/EPC
-    re = (pe + tb_mat[0]) / pe
-    if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
-        re = (pe + tb_mat[0] - tb_mat[1] * tb_mat[0]) / pe
-
-    tejxj = (1 + (1 - sigmastar) / theta) * df['CeFH'] * jxbar_hat ** ((1 - sigmastar) / theta) * (pe * re) ** (-epsilonDstar) / df['jxbar']
-    ejyj = (1 + (1 - sigmastar) / theta) * df['CeHH'] * jmbar_hat ** ((1 - sigma) / theta) * (pe * re) ** (-epsilonD) / df['jmbar']
-    djxdre = -(theta * (1 - alpha)) * jxbar_prime * (1 - jxbar_prime) / re
-    djmdre = -(theta * (1 - alpha)) * jmbar_prime * (1 - jmbar_prime) / re
-    
-    leaknum = re * (ejyj * djmdre + tejxj * djxdre)
-    leakdenum = ejyj * djmdre + tejxj * djxdre - epsilonD * Cey_prime / re - epsilonDstar * Cex_prime / re
-    leak = leaknum / leakdenum
-
-    leaknum2 = re * tejxj * djxdre
-    leakdenum2 = tejxj * djxdre - epsilonDstar * Cex_prime / re
-    leak2 = leaknum2 / leakdenum2
     
     ## new leakage for PC, EPC
     djxdve = -jxbar_prime * (1-jxbar_prime) * gprime(ve) / g(ve) * theta
     djmdve = -jmbar_prime * (1-jmbar_prime) * gprime(ve) / g(ve) * theta
+    
+    dceydve = Dstarprime(ve, sigma) / Dstar(ve, sigma) * Cey_prime + (1+(1-sigma)/theta) * djmdve / jmbar_prime * Cey_prime
+    dcemdve = 1/(1-jmbar_prime) * (1+(1-sigma)/theta) * (-djmdve) * Cem_prime 
     dcexdve = Dstarprime(ve, sigmastar) / Dstar(ve, sigmastar) * Cex_prime +  (1+(1-sigmastar) / theta) * Cex_prime / jxbar_prime * djxdve
     dceystardve = (1+(1-sigmastar) /theta) * Ceystar_prime * (-djxdve) / (1-jxbar_prime)
+    
+    leak = -(dceystardve + dcemdve) / (dcexdve + dceydve)
     leak2 = -dceystardve / dcexdve
 
     return leak, leak2
@@ -509,7 +481,7 @@ def comp_diff(consvals, jvals, Ge_prime, Gestar_prime, Qe_prime, Qestar_prime, Q
     alpha, theta, sigma, sigmastar, epsilonD, epsilonDstar, epsilonS, epsilonSstar, beta, gamma, logit = ParaList
 
     # compute marginal leakage
-    leak, leak2 = comp_mleak(pe, tb_mat, jvals, Cey_prime, Cex_prime, Ceystar_prime, ParaList, tax_scenario, df)
+    leak, leak2 = comp_mleak(pe, tb_mat, jvals, Cey_prime,Cem_prime, Cex_prime, Ceystar_prime, ParaList, tax_scenario, df)
 
     # compute world energy consumption and necessary elasticities
     Ceworld_prime = Ce_prime + Cestar_prime
