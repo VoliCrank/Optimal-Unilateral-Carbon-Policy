@@ -259,7 +259,6 @@ def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, ParaList):
     Vgm_hat = (g(pe+tb_mat[0])/g(1))**(1-sigma)
 
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
-        Vgm_hat = pe * Cem_hat
         Vgm_hat = (g(pe) / g(1))**(1-sigma) * ((1-jmbar_prime) / (1-df['jmbar'])) ** (1+(1-sigma)/theta)
 
     # final value of home import of good
@@ -317,11 +316,8 @@ def comp_vgfin(pe, tb_mat, consvals, vgvals, jvals, ParaList, df, tax_scenario):
     Vg_prime = (g(pe+tb_mat[0]) / g(1)) **(1-sigma) * Vg
     
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
-        Vgy_prime = (g(pe+tb_mat[0]) / g(1))**(1-sigma) * jmbar_hat ** (1+(1-sigma)/theta)
+        Vgy_prime = (g(pe+tb_mat[0]) / g(1))**(1-sigma) * jmbar_hat ** (1+(1-sigma)/theta) * Vgy
         Vg_prime = Vgy_prime + Vgm_prime
-
-    if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
-        Vg_prime = Cey_prime / (1 - alpha) * (pe + tb_mat[0]) + Cem_prime / (1 - alpha) * (pe + tb_mat[0])
 
     # foreign spending on goods
     Vgstar = df['Cestar'] * g(1) / gprime(1)
@@ -349,19 +345,16 @@ def comp_lg(pe, tb_mat, Ge_prime, Gestar_prime, consvals, ParaList, df, tax_scen
     Lg = 1/k(1) * df['Ge']
     Lg_prime = 1/k(pe+tb_mat[0]) * Ge_prime
     if tax_scenario['tax_sce'] == 'puretc' or tax_scenario['tax_sce'] == 'EC_hybrid':
-        Lg_prime = alpha / (1 - alpha) * (pe + tb_mat[0]) * Cey_prime + alpha / (1 - alpha) * pe * Cex_prime
+        Lg_prime = 1/k(pe+tb_mat[0]) * Cey_prime + 1/k(pe) * Cex_prime
 
     if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
-        Lg_prime = alpha / (1 - alpha) * (pe + tb_mat[0]) * Cey_prime + alpha / (1 - alpha) * (
-                pe + tb_mat[0] - tb_mat[1] * tb_mat[0]) * Cex_prime
+        Lg_prime = 1/k(pe+tb_mat[0]) * Cey_prime + 1/k(pe+tb_mat[0] - tb_mat[1] * tb_mat[0]) * Cex_prime
 
     ## labour employed in foreign production
     Lgstar = 1/k(1) * df['Gestar']
     Lgstar_prime = 1/k(pe+tb_mat[0]) * Cem_prime + 1/k(pe) * Ceystar_prime
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
-        Lgstar_prime = alpha / (1 - alpha) * pe * Gestar_prime
-    if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
-        Lgstar_prime = alpha / (1 - alpha) * (pe + tb_mat[0]) * Cem_prime + alpha / (1 - alpha) * pe * Ceystar_prime
+        Lgstar_prime = 1/k(pe) * Gestar_prime
 
     return Lg, Lg_prime, Lgstar, Lgstar_prime
 
@@ -373,8 +366,10 @@ def comp_lg(pe, tb_mat, Ge_prime, Gestar_prime, consvals, ParaList, df, tax_scen
 ##        tb_mat (border adjustments), tax_scenario, varphi, ParaList
 ## output: compute change in Le/Lestar (labour in home/foreign extraction)
 ##         change home utility
-def comp_delta(Lg, Lg_prime, Lgstar, Lgstar_prime, Qeworld_prime, Vg, Vgstar, df, jvals, pe, petbte, tb_mat,
-               tax_scenario, varphi, ParaList):
+def comp_delta(lgvals, vgvals, Qeworld_prime, df, jvals, pe, petbte, tb_mat, tax_scenario, varphi, ParaList):
+    
+    Lg, Lgstar, Lg_prime, Lgstar_prime = lgvals
+    Vg, Vgstar, Vg_prime, Vgstar_prime = vgvals
     
     # unpack parameters
     alpha, theta, sigma, sigmastar, epsilonD, epsilonDstar, epsilonS, epsilonSstar, beta, gamma, logit = ParaList
@@ -390,28 +385,30 @@ def comp_delta(Lg, Lg_prime, Lgstar, Lgstar_prime, Qeworld_prime, Vg, Vgstar, df
     if logit == 1:
         delta_Le = beta * df['Qe'] * quad(Func, 1, petbte, args=(beta, gamma))[0]
         delta_Lestar = beta * df['Qestar'] * quad(Func, 1, pe, args=(beta, gamma))[0]
+        
+    const = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) - varphi * (Qeworld_prime - df['Qeworld'])
 
-    delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
-              + Vg * (alpha - 1) * math.log(pe + tb_mat[0]) + Vgstar * (1 / theta) * math.log(
-        df['jxbar'] / j0_prime * (pe + tb_mat[0]) ** (-(1 - alpha) * theta)) \
-              - varphi * (Qeworld_prime - df['Qeworld'])
+    delta_U = Vg * (alpha - 1) * math.log(pe + tb_mat[0]) + Vgstar * (1 / theta) * math.log(df['jxbar'] / j0_prime * (pe + tb_mat[0]) ** (-(1 - alpha) * theta)) \
+              + const
                                               
-    delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
-                - math.log((g(pe+tb_mat[0]) /g(1))) * Vg \
-                + Vgstar * (1 / theta) * math.log(df['jxbar'] / j0_prime * (pe + tb_mat[0]) ** (-(1 - alpha) * theta)) \
-                - varphi * (Qeworld_prime - df['Qeworld'])
+    delta_U = - math.log((g(pe+tb_mat[0]) /g(1))) * Vg + Vgstar * (1 / theta) * math.log(df['jxbar'] / j0_prime * (pe + tb_mat[0]) ** (-(1 - alpha) * theta)) \
+                + const
 
     if tax_scenario['tax_sce'] == 'puretc' or tax_scenario['tax_sce'] == 'purete' or tax_scenario[
         'tax_sce'] == 'EC_hybrid':
         delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
                   + Vg * (alpha - 1) * math.log(pe + tb_mat[0]) + Vgstar * (alpha - 1) * math.log(pe) \
                   - varphi * (Qeworld_prime - df['Qeworld'])
+        delta_U = const + Vg * (alpha - 1) * math.log(pe + tb_mat[0]) + Vgstar * (alpha - 1) * math.log(pe) 
 
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
         delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
                   + Vg * ((alpha - 1) * math.log(pe + tb_mat[0]) + 1 / theta * math.log(df['jmbar'] / jmbar_prime)) \
                   + Vgstar * ((alpha - 1) * math.log(pe + tb_mat[0]) + 1 / theta * math.log(df['jxbar'] / jxbar_prime)) \
                   - varphi * (Qeworld_prime - df['Qeworld'])
+        
+        delta_U = const + Vg * ((alpha - 1) * math.log(pe + tb_mat[0]) + 1 / theta * math.log(df['jmbar'] / jmbar_prime)) \
+                + Vgstar * ((alpha - 1) * math.log(pe + tb_mat[0]) + 1 / theta * math.log(df['jxbar'] / jxbar_prime))
 
     if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
         delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
@@ -419,6 +416,13 @@ def comp_delta(Lg, Lg_prime, Lgstar, Lgstar_prime, Qeworld_prime, Vg, Vgstar, df
                   + Vgstar * ((alpha - 1) * math.log(pe + tb_mat[0] - tb_mat[1] * tb_mat[0]) + 1 / theta * math.log(
             df['jxbar'] / jxbar_prime)) \
                   - varphi * (Qeworld_prime - df['Qeworld'])
+        
+        delta_U = const + Vg * ((alpha - 1) * math.log(pe + tb_mat[0]) + 1 / theta * math.log(df['jmbar'] / jmbar_prime)) \
+                + Vgstar * ((alpha - 1) * math.log(pe + tb_mat[0] - tb_mat[1] * tb_mat[0]) + 1 / theta * math.log(df['jxbar'] / jxbar_prime))
+        
+    if sigma != 1 and sigmastar != 1:
+        delta_U = const + sigma/(sigma - 1) * (Vg_prime - Vg) + sigmastar / (sigmastar-1) * (Vgstar_prime - Vgstar)
+        
     return delta_Le, delta_Lestar, delta_U
 
 
@@ -520,7 +524,6 @@ def comp_diff(consvals, jvals, Ge_prime, Gestar_prime, Qe_prime, Qestar_prime, Q
         
         dcewdpe = abs(Dstarprime(pe,sigma) / Dstar(pe,sigma) * Cey_prime 
                       + Dstarprime(pe,sigmastar) / Dstar(pe,sigmastar) * Cex1_prime 
-                      + D1starprime(pe,0,sigmastar) / D1star(pe,0,sigmastar) * Cex2_prime
                       + Dstarprime(pe,sigmastar) / Dstar(pe,sigmastar) * (Ceystar_prime + Cem_prime))
         denominator = epsilonSstar * Qestar_prime + dcewdpe * pe
         
@@ -554,6 +557,14 @@ def comp_diff(consvals, jvals, Ge_prime, Gestar_prime, Qe_prime, Qestar_prime, Q
     if tax_scenario['tax_sce'] == 'PC_hybrid':
         numerator = varphi * epsilonSw * Qeworld_prime
         denominator = epsilonSw * Qeworld_prime + epsilonDstar * Ceystar_prime + leak2 * epsilonDstar * Cex_prime
+        
+        
+        djxbardpe = theta * gprime(pe) / g(pe) * jxbar_prime * (1-jxbar_prime)
+        dceystardpe = abs(Dstarprime(pe, sigmastar) / Dstar(pe, sigmastar) + (1+(1-sigmastar) / theta) / (1-jxbar_prime) * djxbardpe) * Ceystar_prime
+        dcexdpe = abs((1+(1-sigmastar) / theta) / (jxbar_prime) * djxbardpe) * Cex_prime
+        
+        denominator = numerator / varphi + dceystardpe* pe+ leak2 * dcexdpe *pe
+        
         diff1 = (tb_mat[0] * denominator - numerator) 
         # border rebate for exports tb[1] * tb[0] = leakage * tc
         diff2 = (tb_mat[1] * tb_mat[0]) * denominator - (leak2) * numerator
