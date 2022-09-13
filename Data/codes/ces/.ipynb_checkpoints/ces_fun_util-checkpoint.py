@@ -103,7 +103,7 @@ def computejbar(ParaList, pe, te, varphi, tb_mat, tax_scenario, df):
     if tax_scenario['tax_sce'] == 'EP_hybrid':
         te = tb_mat[1]
         ve = pe+tb_mat[0]
-        jmbar_hat = 1
+        jmbar_hat = df['CeHH'] * (g(pe) / g(ve))**theta / (df['CeHH'] * (g(pe) / g(ve))**theta + df['CeHF']) / df['jmbar']
         jxbar_hat = df['CeFH'] * (g(pe) / g(ve))**theta / (df['CeFH'] * (g(pe) / g(ve))**theta + df['CeFF']) / df['jxbar']
 
     if tax_scenario['tax_sce'] == 'EPC_hybrid':
@@ -169,6 +169,7 @@ def comp_ce(pe, tb_mat, jvals, ParaList, df, tax_scenario):
 
     #### new Cex1, Cex2
     Cex1_hat = gprime(pe + tb_mat[0]) * g(pe+tb_mat[0])**(-sigmastar) / (g(1)**(-sigmastar) * gprime(1)) * (j0_prime / df['jxbar']) ** (1+ (1-sigmastar)/theta) 
+    
     const = g(pe)**(-sigmastar) * gprime(pe + tb_mat[0]) / (g(1)**(-sigmastar) * gprime(1))
     frac = ((1-df['jxbar'])/df['jxbar'])**(sigmastar/theta) * (theta + 1 - sigmastar)/theta
     jterm = 1/ df['jxbar']**(1+(1-sigmastar)/theta)
@@ -231,6 +232,7 @@ def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, ParaList):
     
     ## new Vgx (Vgx)
     Vgx1_prime = (g(pe+tb_mat[0]) / g(1))**(1-sigmastar) * j0_hat**(1+(1-sigmastar)/theta) * (g(1)/gprime(1)) * df['CeFH']
+    
     pterm = gprime(pe) * g(pe)**(-sigmastar) * pe * df['CeFH'] / (g(1)**(-sigmastar) * gprime(1) * g(1)**(-sigmastar) * gprime(1))
     num = (1-j0_prime)**((theta + 1 - sigmastar)/theta) - (1-jxbar_prime)**((theta + 1 - sigmastar) / theta)
     denum = df['jxbar'] * (1-df['jxbar'])**((1-sigmastar)/theta)
@@ -239,12 +241,16 @@ def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, ParaList):
 
     if tax_scenario['Base'] == 1:
         Vgx_hat = pe * Cex_hat
+        Vgx_hat = (g(pe) / g(1)) ** (1-sigmastar) * (jxbar_hat) ** (1+(1-sigmastar)/theta)
 
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
-        Vgx_hat = (pe + tb_mat[0]) * Cex_hat
+        ve = pe + tb_mat[0]
+        Vgx_hat = (g(ve) / g(1)) ** (1-sigmastar) * (jxbar_hat) ** (1+(1-sigmastar)/theta)
+        
 
     if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
-        Vgx_hat = (pe + tb_mat[0] - tb_mat[1] * tb_mat[0]) * Cex_hat
+        ve = pe + tb_mat[0] - tb_mat[1] * tb_mat[0]
+        Vgx_hat = (g(ve) / g(1)) ** (1-sigmastar) * (jxbar_hat) ** (1+(1-sigmastar)/theta)
         
     # final value of home export of good    
     Vgx_prime = Vgx * Vgx_hat
@@ -254,10 +260,8 @@ def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, ParaList):
 
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
         Vgm_hat = pe * Cem_hat
+        Vgm_hat = (g(pe) / g(1))**(1-sigma) * ((1-jmbar_prime) / (1-df['jmbar'])) ** (1+(1-sigma)/theta)
 
-    if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
-        Vgm_hat = (pe + alpha * tb_mat[0]) * Cem_hat
-    
     # final value of home import of good
     Vgm_prime = Vgm * Vgm_hat
 
@@ -295,18 +299,26 @@ def comp_ve(pe, tb_mat, consvals, tax_scenario):
 ##        ParaList, df, tax_scenario
 ## output: Vg, Vg_prime, Vgstar, Vgstar_prime (values of home and foreign total spending on goods)
 ##         non prime values returned to simplify later computations
-def comp_vgfin(pe, tb_mat, consvals, Vgx_prime, ParaList, df, tax_scenario):
+def comp_vgfin(pe, tb_mat, consvals, vgvals, jvals, ParaList, df, tax_scenario):
     
     # unpack parameters
+    Vgx_prime, Vgm_prime = vgvals
+    j0_hat, j0_prime, jxbar_hat, jxbar_prime, jmbar_hat, jmbar_prime = jvals
     alpha, theta, sigma, sigmastar, epsilonD, epsilonDstar, epsilonS, epsilonSstar, beta, gamma, logit = ParaList
     Cey_prime, Cex1_prime, Cex2_prime, Cex_prime, Cem_prime, Ceystar_prime, Cex_hat, Cex1_hat, Cem_hat, Ce_prime, Cestar_prime = consvals
+    
+    scale = g(1) / gprime(1)
+    # value of home and foreign goods
+    Vgy = df['CeHH'] * scale
+    Vgystar = df['CeFF'] * scale
 
     # home spending on goods
     Vg = df['Ce'] * g(1) / gprime(1)
     Vg_prime = (g(pe+tb_mat[0]) / g(1)) **(1-sigma) * Vg
     
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
-        Vg_prime = Cey_prime / (1 - alpha) * (pe + tb_mat[0]) + Cem_prime / (1 - alpha) * pe
+        Vgy_prime = (g(pe+tb_mat[0]) / g(1))**(1-sigma) * jmbar_hat ** (1+(1-sigma)/theta)
+        Vg_prime = Vgy_prime + Vgm_prime
 
     if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
         Vg_prime = Cey_prime / (1 - alpha) * (pe + tb_mat[0]) + Cem_prime / (1 - alpha) * (pe + tb_mat[0])
@@ -315,12 +327,12 @@ def comp_vgfin(pe, tb_mat, consvals, Vgx_prime, ParaList, df, tax_scenario):
     Vgstar = df['Cestar'] * g(1) / gprime(1)
     Vgstar_prime = Vgx_prime + Ceystar_prime * g(pe) / gprime(pe)
     
-    if tax_scenario['tax_sce'] == 'puretc' or tax_scenario['tax_sce'] == 'EC_hybrid':
-        Vgstar_prime = Cestar_prime / (1 - alpha) * pe
+    #if tax_scenario['tax_sce'] == 'puretc' or tax_scenario['tax_sce'] == 'EC_hybrid':
+    #    Vgstar_prime = Cestar_prime / (1 - alpha) * pe
 
-    if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
-        Vgstar_prime = Ceystar_prime / (1 - alpha) * pe + Cex_prime / (1 - alpha) * (
-                pe + tb_mat[0] - tb_mat[1] * tb_mat[0])
+    #if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
+    #    Vgstar_prime = Ceystar_prime / (1 - alpha) * pe + Cex_prime / (1 - alpha) * (
+    #            pe + tb_mat[0] - tb_mat[1] * tb_mat[0])
 
     return Vg, Vg_prime, Vgstar, Vgstar_prime
 
