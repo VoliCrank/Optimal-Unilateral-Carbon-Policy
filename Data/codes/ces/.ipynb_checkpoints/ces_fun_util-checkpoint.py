@@ -9,7 +9,7 @@ import sympy
 from scipy.integrate import quad
 x = symbols('x')
 
-rho =0.5
+rho =0
 ## define CES production function and its derivative
 def g(p, rho = rho, alpha = 0.15):
     if rho == 0:
@@ -527,7 +527,7 @@ def comp_diff(consvals, jvals, Ge_prime, Gestar_prime, Qe_prime, Qestar_prime, Q
                       + Dstarprime(pe,sigmastar) / Dstar(pe,sigmastar) * (Ceystar_prime))
         
         numerator = varphi * (epsilonS * Qe_prime + epsilonSstar * Qestar_prime)
-        denominator = numerator / varphi + dcestardpe * pe
+        denominator = (epsilonS * Qe_prime + epsilonSstar * Qestar_prime) + dcestardpe * pe
         # border adjustment = consumption wedge
         diff1 = tb_mat[0] * denominator - numerator
         
@@ -542,7 +542,7 @@ def comp_diff(consvals, jvals, Ge_prime, Gestar_prime, Qe_prime, Qestar_prime, Q
         dcemdpe = abs(Dstarprime(pe,sigma) / Dstar(pe,sigma) - (1+(1-sigma)/theta) / (1-jmbar_prime) * djmbardpe) * Cem_prime
         dceydpe = abs(Dstarprime(ve,sigma) / Dstar(ve,sigma) + (1+(1-sigma)/theta) / jmbar_prime * djmbardpe) * Cey_prime
                       
-        denominator = numerator / varphi + (dceystardpe + dcemdpe)* pe+ leak * (dcexdpe + dceydpe) *pe
+        denominator = epsilonSw * Qeworld_prime + (dceystardpe + dcemdpe)* pe+ leak * (dcexdpe + dceydpe) *pe
         # border adjustment = (1-leakage) consumption wedge
         diff1 = tb_mat[0] * denominator - (1 - leak) * numerator
         
@@ -562,7 +562,7 @@ def comp_diff(consvals, jvals, Ge_prime, Gestar_prime, Qe_prime, Qestar_prime, Q
         dcexdpe = abs(Dstarprime(ve, sigmastar) / Dstar(ve, sigmastar)+(1+(1-sigmastar) / theta) / (jxbar_prime) * djxbardpe) * Cex_prime
         
         numerator = varphi * epsilonSw * Qeworld_prime
-        denominator = numerator / varphi + dceystardpe* pe+ leak2 * dcexdpe *pe
+        denominator = epsilonSw * Qeworld_prime + dceystardpe* pe+ leak2 * dcexdpe *pe
         
         diff1 = (tb_mat[0] * denominator - numerator) 
         # border rebate for exports tb[1] * tb[0] = leakage * tc
@@ -579,7 +579,7 @@ def comp_diff(consvals, jvals, Ge_prime, Gestar_prime, Qe_prime, Qestar_prime, Q
         dceydpe = abs(Dstarprime(ve,sigma) / Dstar(ve,sigma) + (1+(1-sigma)/theta) / jmbar_prime * djmbardpe) * Cey_prime
         
         numerator = varphi * epsilonSstar * Qestar_prime 
-        denominator = numerator / varphi + (dceystardpe + dcemdpe)* pe+ leak * (dcexdpe + dceydpe) *pe
+        denominator = epsilonSstar * Qestar_prime + (dceystardpe + dcemdpe)* pe+ leak * (dcexdpe + dceydpe) *pe
         
         # tp equal to (1-leakge) * consumption wedge
         diff1 = tb_mat[0] * denominator - (1 - leak) * numerator
@@ -594,7 +594,7 @@ def comp_diff(consvals, jvals, Ge_prime, Gestar_prime, Qe_prime, Qestar_prime, Q
         dcexdpe = abs(Dstarprime(ve, sigmastar) / Dstar(ve, sigmastar)+(1+(1-sigmastar) / theta) / (jxbar_prime) * djxbardpe) * Cex_prime
         
         numerator = varphi * epsilonSw * Qestar_prime
-        denominator = numerator / varphi + dceystardpe* pe+ leak2 * dcexdpe *pe
+        denominator = epsilonSw * Qestar_prime + dceystardpe* pe+ leak2 * dcexdpe *pe
         
         # border adjustment = consumption wedge
         diff1 = tb_mat[0] * denominator - numerator
