@@ -398,8 +398,6 @@ def comp_delta(lgvals, vgvals, Qeworld_prime, df, jvals, pe, petbte, tb_mat, tax
     
     # change in labour in home/foreign extraction
     delta_Le = (epsilonS / (epsilonS + 1)) * df['Qe'] * ((petbte) ** (epsilonS + 1) - 1)
-    #if (pe + tb_mat[0] - varphi <= 0):
-    #    delta_Le = 0
     delta_Lestar = (epsilonSstar / (epsilonSstar + 1)) * df['Qestar'] * (pe ** (epsilonSstar + 1) - 1)
 
     def Func(a, beta, gamma):
@@ -412,7 +410,9 @@ def comp_delta(lgvals, vgvals, Qeworld_prime, df, jvals, pe, petbte, tb_mat, tax
     const = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) - varphi * (Qeworld_prime - df['Qeworld'])
     
     if sigma != 1 and sigmastar != 1:
+        
         delta_U = const + sigma/(sigma - 1) * (Vg_prime - Vg) + sigmastar / (sigmastar-1) * (Vgstar_prime - Vgstar)
+        print(delta_U, varphi * (Qeworld_prime - df['Qeworld']))
         ##print(sigma/(sigma - 1) * (Vgstar_prime - Vgstar), 'and', math.log(df['jxbar'] * (pe+tb_mat[0])**(-(1-alpha)*theta) + (1-df['jxbar']) * pe **(-(1-alpha)*theta)) / theta * Vgstar)
         return delta_Le, delta_Lestar, delta_U
 
