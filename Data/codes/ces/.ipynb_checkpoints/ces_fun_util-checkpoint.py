@@ -247,7 +247,7 @@ def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, ParaList):
     ## new Vgx (Vgx)
     Vgx1_prime = (g(pe+tb_mat[0]) / g(1))**(1-sigmastar) * j0_hat**(1+(1-sigmastar)/theta) * (g(1)/gprime(1)) * df['CeFH']
     
-    pterm = gprime(pe) * g(pe)**(-sigmastar) * pe * df['CeFH'] / (g(1)**(-sigmastar) * gprime(1) * g(1)**(-sigmastar) * gprime(1))
+    pterm = (g(pe) / g(1))**(1-sigmastar) * Vgx
     num = (1-j0_prime)**((theta + 1 - sigmastar)/theta) - (1-jxbar_prime)**((theta + 1 - sigmastar) / theta)
     denum = df['jxbar'] * (1-df['jxbar'])**((1-sigmastar)/theta)
     Vgx2_prime = pterm * num / denum
