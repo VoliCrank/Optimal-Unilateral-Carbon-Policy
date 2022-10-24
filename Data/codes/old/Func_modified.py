@@ -736,7 +736,7 @@ def minimization(df, tb_mat, te, varphi, tax_scenario, ParaList):
             te=varphi
         return pd.Series({'tb': tb, 'prop': prop, 'te': te})
     elif tax_scenario['tax_sce']=='purete':
-        res = minimize(minuswelfare_purete, 0, method='nelder-mead', args=(tb_mat, varphi, tax_scenario, ParaList, df));
+        res = minimize(minuswelfare_purete, 0, method='nelder-mead', args=(tb_mat, varphi, tax_scenario, ParaList, df),  tol=0.000001, options={'maxfev': 100000});
         te = res.x[0]
         tb_mat = [0,1];
         tb=tb_mat[0];
@@ -1136,7 +1136,7 @@ def callback(df, varphi, tax_scenario, ParaList):
         
     if sigma != 1 and sigmastar != 1:
         delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) + sigma / (sigma - 1) * (Vg_prime - Vg) + sigmastar / (sigmastar - 1) * (Vgstar_prime - Vg) - varphi * (Qeworld_prime - df['Qeworld'])
-    
+    #print(sigmastar / (sigmastar - 1) * (Vgstar_prime - Vg), Vgstar * (1/theta) * math.log(df['jxbar']/j0_prime * (pe+df['tb'])**(-(1-alpha)*theta)))
     welfare = delta_U/Vg*100;  
     welfare_noexternality = (delta_U + varphi * (Qeworld_prime - df['Qeworld']) )/Vg*100;  
     

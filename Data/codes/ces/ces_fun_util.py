@@ -6,8 +6,8 @@ import sympy
 from scipy.integrate import quad
 x = symbols('x')
 
-rho = 0
-alpha = 0.15
+rho = -0.5
+alpha = 0.0690161379156130
 ## define CES production function and its derivative
 def g(p, rho = rho, alpha = alpha):
     if rho == 0:
@@ -234,6 +234,7 @@ def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, ParaList):
     Cey_prime, Cex1_prime, Cex2_prime, Cex_prime, Cem_prime, Ceystar_prime, Cex_hat, Cex1_hat, Cem_hat, Ce_prime, Cestar_prime = consvals
     alpha, theta, sigma, sigmastar, epsilonD, epsilonDstar, epsilonS, epsilonSstar, beta, gamma, logit = ParaList
 
+    ## BAU values
     scale = g(1) / gprime(1)
     # value of home and foreign goods
     Vgy = df['CeHH'] * scale
@@ -244,8 +245,8 @@ def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, ParaList):
     Vgm = df['CeHF'] * scale
     
     
-    ## new Vgx (Vgx)
-    Vgx1_prime = (g(pe+tb_mat[0]) / g(1))**(1-sigmastar) * j0_hat**(1+(1-sigmastar)/theta) * (g(1)/gprime(1)) * df['CeFH']
+    ## Value of exports for unilateral optimal
+    Vgx1_prime = (g(pe+tb_mat[0]) / g(1))**(1-sigmastar) * j0_hat**(1+(1-sigmastar)/theta) * Vgx
     
     pterm = (g(pe) / g(1))**(1-sigmastar) * Vgx
     num = (1-j0_prime)**((theta + 1 - sigmastar)/theta) - (1-jxbar_prime)**((theta + 1 - sigmastar) / theta)
@@ -253,14 +254,12 @@ def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, ParaList):
     Vgx2_prime = pterm * num / denum
     Vgx_hat = (Vgx1_prime + Vgx2_prime)/ Vgx
 
-    if tax_scenario['Base'] == 1:
-        Vgx_hat = pe * Cex_hat
-        Vgx_hat = (g(pe) / g(1)) ** (1-sigmastar) * (jxbar_hat) ** (1+(1-sigmastar)/theta)
+    if tax_scenario['tax_sce'] == 'puretc' or tax_scenario['tax_sce'] == 'purete' or tax_scenario['tax_sce'] == 'EC_hybrid':
+        Vgx_hat = (g(pe) / g(1)) ** (1-sigmastar)
 
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
         ve = pe + tb_mat[0]
         Vgx_hat = (g(ve) / g(1)) ** (1-sigmastar) * (jxbar_hat) ** (1+(1-sigmastar)/theta)
-        
 
     if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
         ve = pe + tb_mat[0] - tb_mat[1] * tb_mat[0]
@@ -271,12 +270,14 @@ def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, ParaList):
 
     # value of home import of good
     Vgm_hat = (g(pe+tb_mat[0])/g(1))**(1-sigma)
-
+        
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
         Vgm_hat = (g(pe) / g(1))**(1-sigma) * ((1-jmbar_prime) / (1-df['jmbar'])) ** (1+(1-sigma)/theta)
 
     # final value of home import of good
     Vgm_prime = Vgm * Vgm_hat
+    
+    #Vgystar_prime = (g(pe) / g(1))**(1-sigmastar) * Vgystar    # equivalent to Ceystar_prime * g(pe) / gprime(pe)
 
     return Vgy, Vgystar, Vgx1_prime, Vgx2_prime, Vgx_prime, Vgm_prime, Vgx, Vgm
 
@@ -398,46 +399,54 @@ def comp_delta(lgvals, vgvals, Qeworld_prime, df, jvals, pe, petbte, tb_mat, tax
     if logit == 1:
         delta_Le = beta * df['Qe'] * quad(Func, 1, petbte, args=(beta, gamma))[0]
         delta_Lestar = beta * df['Qestar'] * quad(Func, 1, pe, args=(beta, gamma))[0]
-        
+    
+    # term that is common across all delta_U calculations
     const = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) - varphi * (Qeworld_prime - df['Qeworld'])
     
     if sigma != 1 and sigmastar != 1:
         delta_U = const + sigma/(sigma - 1) * (Vg_prime - Vg) + sigmastar / (sigmastar-1) * (Vgstar_prime - Vgstar)
         return delta_Le, delta_Lestar, delta_U
 
-    delta_U = Vg * (alpha - 1) * math.log(pe + tb_mat[0]) + Vgstar * (1 / theta) * math.log(df['jxbar'] / j0_prime * (pe + tb_mat[0]) ** (-(1 - alpha) * theta)) \
-              + const
+    #delta_U = Vg * (alpha - 1) * math.log(pe + tb_mat[0]) + Vgstar * (1 / theta) * math.log(df['jxbar'] / j0_prime * (pe + tb_mat[0]) ** (-(1 - alpha) * theta)) + const
+    ## in the unilateral optimal case
+    if tax_scenario['tax_sce'] == 'Unilateral':
+        
+        delta_Vg = -math.log((g(pe+tb_mat[0]) /g(1))) * Vg
+        
+        delta_Vgstar_t1 = -(1-j0_prime) * math.log(g(pe) / g(1) * ((1-j0_prime) / (1-df['jxbar'])) ** (1/theta)) 
+        delta_Vgstar_t2 = -j0_prime * math.log(g(pe+tb_mat[0]) / g(1) * (j0_prime / df['jxbar']) ** (1/theta))
+        delta_Vgstar = (delta_Vgstar_t1 + delta_Vgstar_t2) * Vgstar
                                               
-    delta_U = - math.log((g(pe+tb_mat[0]) /g(1))) * Vg + Vgstar * (1 / theta) * math.log(df['jxbar'] / j0_prime * (pe + tb_mat[0]) ** (-(1 - alpha) * theta)) \
-                + const
-
-    if tax_scenario['tax_sce'] == 'puretc' or tax_scenario['tax_sce'] == 'purete' or tax_scenario[
-        'tax_sce'] == 'EC_hybrid':
-        delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
-                  + Vg * (alpha - 1) * math.log(pe + tb_mat[0]) + Vgstar * (alpha - 1) * math.log(pe) \
-                  - varphi * (Qeworld_prime - df['Qeworld'])
-        delta_U = const + Vg * (alpha - 1) * math.log(pe + tb_mat[0]) + Vgstar * (alpha - 1) * math.log(pe) 
+    if tax_scenario['tax_sce'] == 'puretc' or tax_scenario['tax_sce'] == 'purete' or tax_scenario['tax_sce'] == 'EC_hybrid':
+        #delta_U = const + Vg * (alpha - 1) * math.log(pe + tb_mat[0]) + Vgstar * (alpha - 1) * math.log(pe) 
+        delta_Vg = -math.log(g(pe+tb_mat[0]) /g(1)) * Vg
+        delta_Vgstar = -math.log(g(pe) / g(1)) * Vgstar
 
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
-        delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
-                  + Vg * ((alpha - 1) * math.log(pe + tb_mat[0]) + 1 / theta * math.log(df['jmbar'] / jmbar_prime)) \
-                  + Vgstar * ((alpha - 1) * math.log(pe + tb_mat[0]) + 1 / theta * math.log(df['jxbar'] / jxbar_prime)) \
-                  - varphi * (Qeworld_prime - df['Qeworld'])
+        #delta_U = const + Vg * ((alpha - 1) * math.log(pe + tb_mat[0]) + 1 / theta * math.log(df['jmbar'] / jmbar_prime)) \
+        #        + Vgstar * ((alpha - 1) * math.log(pe + tb_mat[0]) + 1 / theta * math.log(df['jxbar'] / jxbar_prime))
         
-        delta_U = const + Vg * ((alpha - 1) * math.log(pe + tb_mat[0]) + 1 / theta * math.log(df['jmbar'] / jmbar_prime)) \
-                + Vgstar * ((alpha - 1) * math.log(pe + tb_mat[0]) + 1 / theta * math.log(df['jxbar'] / jxbar_prime))
+        #delta_Vg = -math.log(g(pe+tb_mat[0]) / g(1)) * Vg
+        ve = pe + tb_mat[0]
+        delta_Vg_t1 = -jmbar_prime * math.log(g(ve) / g(1) * (jmbar_prime / df['jmbar']) ** (1/theta))
+        delta_Vg_t2 = -(1-jmbar_prime) * math.log(g(pe) / g(1) * ((1-jmbar_prime) / (1-df['jmbar']))**(1/theta))
+        delta_Vg = (delta_Vg_t1 + delta_Vg_t2)*Vg
+        
+        delta_Vgstar_t1 = -jxbar_prime * math.log(g(ve) / g(1) * (jxbar_prime / df['jxbar']) ** (1/theta))
+        delta_Vgstar_t2 = -(1-jxbar_prime) * math.log(g(pe) / g(1) * ((1-jxbar_prime) / (1-df['jxbar']))**(1/theta))
+        delta_Vgstar = (delta_Vgstar_t1 + delta_Vgstar_t2) * Vgstar
 
     if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
-        delta_U = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) \
-                  + Vg * ((alpha - 1) * math.log(pe + tb_mat[0]) + 1 / theta * math.log(df['jmbar'] / jmbar_prime)) \
-                  + Vgstar * ((alpha - 1) * math.log(pe + tb_mat[0] - tb_mat[1] * tb_mat[0]) + 1 / theta * math.log(
-            df['jxbar'] / jxbar_prime)) \
-                  - varphi * (Qeworld_prime - df['Qeworld'])
+        #delta_U = const + Vg * ((alpha - 1) * math.log(pe + tb_mat[0]) + 1 / theta * math.log(df['jmbar'] / jmbar_prime)) \
+        #        + Vgstar * ((alpha - 1) * math.log(pe + tb_mat[0] - tb_mat[1] * tb_mat[0]) + 1 / theta * math.log(df['jxbar'] / jxbar_prime))
+        ve = pe + tb_mat[0] - tb_mat[1] * tb_mat[0]
+        delta_Vg = -math.log(g(pe+tb_mat[0]) / g(1)) * Vg
+        delta_Vgstar_t1 = -jxbar_prime * math.log(g(ve) / g(1) * (jxbar_prime / df['jxbar']) ** (1/theta))
+        delta_Vgstar_t2 = -(1-jxbar_prime) * math.log(g(pe) / g(1) * ((1-jxbar_prime) / (1-df['jxbar']))**(1/theta))
+        delta_Vgstar = (delta_Vgstar_t1 + delta_Vgstar_t2) * Vgstar
+
         
-        delta_U = const + Vg * ((alpha - 1) * math.log(pe + tb_mat[0]) + 1 / theta * math.log(df['jmbar'] / jmbar_prime)) \
-                + Vgstar * ((alpha - 1) * math.log(pe + tb_mat[0] - tb_mat[1] * tb_mat[0]) + 1 / theta * math.log(df['jxbar'] / jxbar_prime))
-        
-        
+    delta_U = delta_Vg + delta_Vgstar + const
     return delta_Le, delta_Lestar, delta_U
 
 
@@ -534,7 +543,7 @@ def comp_diff(consvals, jvals, Ge_prime, Gestar_prime, Qe_prime, Qestar_prime, Q
     if tax_scenario['tax_sce'] == 'purete':
         numerator = varphi * epsilonSstar * Qestar_prime
         dcewdpe = abs(Dstarprime(pe,sigma) / Dstar(pe,sigma) * Cey_prime 
-                      + Dstarprime(pe,sigmastar) / Dstar(pe,sigmastar) * Cex1_prime 
+                      + Dstarprime(pe,sigmastar) / Dstar(pe,sigmastar) * Cex_prime 
                       + Dstarprime(pe,sigmastar) / Dstar(pe,sigmastar) * (Ceystar_prime + Cem_prime))
         denominator = epsilonSstar * Qestar_prime + dcewdpe * pe
         
@@ -624,7 +633,7 @@ def comp_diff(consvals, jvals, Ge_prime, Gestar_prime, Qe_prime, Qestar_prime, Q
     # world extraction = world consumption
     diff = Qe_prime + Qestar_prime - (Cey_prime + Cex_prime + Cem_prime + Ceystar_prime)
     #print(diff, diff1)
-    return diff, diff1, diff2
+    return diff, diff1 * 2, diff2 * 2
 
 # assgin values to return later
 def assign_val(Ge_prime, Gestar_prime, Lg_prime, Lgstar_prime, Qe_prime, Qestar_prime, Qeworld_prime, Ve_prime,
