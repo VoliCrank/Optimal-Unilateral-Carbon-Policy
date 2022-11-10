@@ -179,6 +179,8 @@ def comp_ce(pe, tb_mat, jvals, paralist, df, tax_scenario):
     
     #### Cey, jmbar_hat = 1 if not pure tp or EP hybrid
     Cey_prime = Dstar(pe+tb_mat[0], sigma)/ (Dstar(1,sigma)) * df['CeHH'] * (jmbar_hat) **(1+(1-sigma)/theta)
+    if tax_scenario['tax_sce'] == 'purete':
+        Dstar(pe, sigma)/ (Dstar(1,sigma)) * df['CeHH'] * (jmbar_hat) **(1+(1-sigma)/theta)
 
     #### new Cex1, Cex2
     Cex1_hat = Dstar(pe+tb_mat[0], sigmastar) / Dstar(1,sigmastar) * (j0_prime / df['jxbar']) ** (1+ (1-sigmastar)/theta) 
@@ -208,6 +210,8 @@ def comp_ce(pe, tb_mat, jvals, paralist, df, tax_scenario):
 
     # Ce^m, home imports
     Cem_hat = Dstar(pe + tb_mat[0], sigma) / Dstar(1,sigma)
+    if tax_scenario['tax_sce'] == 'purete':
+        Cem_hat = Dstar(pe, sigma) / Dstar(1,sigma)
     
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
         Cem_hat = Dstar(pe, sigma) / Dstar(1,sigma) * ((1 - jmbar_prime) / (1 - df['jmbar'])) ** (1 + (1 - sigma) / theta)
@@ -241,6 +245,8 @@ def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, paralist):
     Vgm = df['CeHF'] * scale
     
     Vgy_prime = g(pe+tb_mat[0]) / gprime(pe) * Cey_prime
+    if tax_scenario['tax_sce'] == 'purete':
+        Vgy_prime = g(pe) / gprime(pe) * Cey_prime
     
     ## Value of exports for unilateral optimal
     Vgx1_prime = (g(pe+tb_mat[0]) / g(1))**(1-sigmastar) * (j0_prime / df['jxbar'])**(1+(1-sigmastar)/theta) * Vgx
@@ -253,7 +259,7 @@ def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, paralist):
 
     if tax_scenario['tax_sce'] != 'Unilateral':
         Vgx_hat = (g(pe) / g(1)) ** (1-sigmastar)
-
+        
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
         ve = pe + tb_mat[0]
         Vgx_hat = (g(ve) / g(1)) ** (1-sigmastar) * (jxbar_prime / df['jxbar']) ** (1+(1-sigmastar)/theta)
@@ -266,6 +272,8 @@ def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, paralist):
     Vgx_prime = Vgx * Vgx_hat
     
     Vgm_prime = g(pe + tb_mat[0]) / gprime(pe + tb_mat[0]) * Cem_prime
+    if tax_scenario['tax_sce'] == 'purete':
+        Vgm_prime = g(pe) / gprime(pe) * Cem_prime
     
     Vgystar_prime = g(pe) / gprime(pe) * Cey_prime
 
@@ -348,6 +356,9 @@ def comp_lg(pe, tb_mat, Ge_prime, Gestar_prime, consvals, paralist, df, tax_scen
     # labour employed in production in home
     Lg = 1/k(1) * df['Ge']
     Lg_prime = 1/k(pe+tb_mat[0]) * (Cey_prime + Cex_prime)
+    if tax_scenario['tax_sce']== 'purete':
+        Lg_prime = 1/k(pe) * (Cey_prime + Cex_prime)
+        
     if tax_scenario['tax_sce'] == 'puretc' or tax_scenario['tax_sce'] == 'EC_hybrid':
         Lg_prime = 1/k(pe+tb_mat[0]) * Cey_prime + 1/k(pe) * Cex_prime
 
@@ -357,6 +368,10 @@ def comp_lg(pe, tb_mat, Ge_prime, Gestar_prime, consvals, paralist, df, tax_scen
     ## labour employed in foreign production
     Lgstar = 1/k(1) * df['Gestar']
     Lgstar_prime = 1/k(pe+tb_mat[0]) * Cem_prime + 1/k(pe) * Ceystar_prime
+    
+    if tax_scenario['tax_sce']== 'purete':
+        Lgstar_prime = 1/k(pe) * Cem_prime + 1/k(pe) * Ceystar_prime
+        
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
         Lgstar_prime = 1/k(pe) * (Cem_prime + Ceystar_prime)
 
@@ -370,7 +385,7 @@ def comp_lg(pe, tb_mat, Ge_prime, Gestar_prime, consvals, paralist, df, tax_scen
 ##        tb_mat (border adjustments), tax_scenario, varphi, paralist
 ## output: compute change in Le/Lestar (labour in home/foreign extraction)
 ##         change home utility
-def comp_delta(lgvals, vgfinvals, Qeworld_prime, df, jvals, pe, petbte, tb_mat, tax_scenario, varphi, paralist):
+def comp_delta(lgvals, vgfinvals, Qeworld_prime, df, jvals, pe, te, tb_mat, tax_scenario, varphi, paralist):
     
     Lg, Lgstar, Lg_prime, Lgstar_prime = lgvals
     Vg, Vgstar, Vg_prime, Vgstar_prime = vgfinvals
@@ -389,7 +404,7 @@ def comp_delta(lgvals, vgfinvals, Qeworld_prime, df, jvals, pe, petbte, tb_mat, 
         hr = epsilonSvec[i][1]
         hrstar = epsilonSstarvec[i][1]
         
-        petbte = pe + tb_mat[0] - varphi * hr
+        petbte = pe + tb_mat[0] - te * hr
         if petbte < 0:
             petbte = 0
             
@@ -429,6 +444,10 @@ def comp_delta(lgvals, vgfinvals, Qeworld_prime, df, jvals, pe, petbte, tb_mat, 
     if tax_scenario['tax_sce'] == 'puretc' or tax_scenario['tax_sce'] == 'purete' or tax_scenario['tax_sce'] == 'EC_hybrid':
         #delta_U = const + Vg * (alpha - 1) * math.log(pe + tb_mat[0]) + Vgstar * (alpha - 1) * math.log(pe) 
         delta_Vg = -math.log(g(pe+tb_mat[0]) /g(1)) * Vg
+        delta_Vgstar = -math.log(g(pe) / g(1)) * Vgstar
+    
+    if tax_scenario['tax_sce'] == 'purete':
+        delta_Vg = -math.log(g(pe) /g(1)) * Vg
         delta_Vgstar = -math.log(g(pe) / g(1)) * Vgstar
 
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
@@ -510,25 +529,31 @@ def comp_mleak(pe, tb_mat, jvals, Cey_prime,Cem_prime, Cex_prime, Ceystar_prime,
     return leak, leak2
 
 
-def comp_eps(pe, Qestars, Qestar_prime, paralist):
+def comp_eps(pe, Qes,Qe_prime, Qestars, Qestar_prime, paralist):
     theta, sigma, sigmastar, epsilonSvec, epsilonSstarvec, beta, gamma, logit = paralist
-    
-    epsilonDstar = abs(pe * Dstarprime(pe, sigmastar) / Dstar(pe, sigmastar))
     
     epsilonSstar_num = 0
     hstar_num = 0
     epsilonSstartilde_num = 0
+    epsilonSw_num = 0
+    epsilonSwtilde_num = 0
     
     for i in range(len(epsilonSstarvec)):
         epsilonSstar_num += epsilonSstarvec[i][0] * Qestars[i]
         hstar_num += epsilonSstarvec[i][1] * Qestars[i] 
         epsilonSstartilde_num += epsilonSstarvec[i][0] *epsilonSstarvec[i][1]* Qestars[i]
         
+        epsilonSw_num += epsilonSstarvec[i][0] * Qestars[i] + epsilonSvec[i][0] * Qes[i]
+        epsilonSwtilde_num += epsilonSstarvec[i][0] *epsilonSstarvec[i][1]* Qestars[i] + epsilonSvec[i][0] * epsilonSvec[i][1] * Qes[i]
+        
     epsilonSstar = epsilonSstar_num / Qestar_prime
     hstar = hstar_num / Qestar_prime
     epsilonSstartilde = epsilonSstartilde_num / (hstar * Qestar_prime)
+    epsilonSstartilde = epsilonSstartilde_num / Qestar_prime
+    epsilonSw = epsilonSw_num / (Qestar_prime + Qe_prime)
+    epsilonSwtilde = epsilonSwtilde_num / (Qestar_prime + Qe_prime)
     
-    return epsilonDstar, epsilonSstar, epsilonSstartilde
+    return epsilonSstar, epsilonSstartilde, epsilonSw, epsilonSwtilde
 
 
 ## input: consval (tuple of consumption values), jvals (tuple of import/export margins),
@@ -556,14 +581,17 @@ def comp_diff(consvals, jvals, Qes, Qestars, Qe_prime, Qestar_prime, Qeworld_pri
     Ceworld_prime = Cey_prime + Cex_prime + Cem_prime + Ceystar_prime
     epsilonS = epsilonSvec[0][0]
     epsilonSstar = epsilonSstarvec[0][0]
-    epsilonSw = (Qe_prime) * epsilonS / Qeworld_prime + Qestar_prime * epsilonSstar / Qeworld_prime
+    epsilonSw_temp = (Qe_prime) * epsilonS / Qeworld_prime + Qestar_prime * epsilonSstar / Qeworld_prime
+    
+    epsilonSstar, epsilonSstartilde, epsilonSw, epsilonSwtilde = comp_eps(pe, Qes, Qe_prime, Qestars, Qestar_prime, paralist)
 
     # initialize diff values
     diff1 = 0
     diff2 = 0
     
     if tax_scenario['tax_sce'] == 'Unilateral':
-        epsilonDstar, epsilonSstar, epsilonSstartilde = comp_eps(pe, Qestars, Qestar_prime, paralist)
+        #epsilonSstar, epsilonSstartilde = comp_eps(pe, Qes, Qe_prime, Qestars, Qestar_prime, paralist)
+        epsilonDstar = abs(pe * Dstarprime(pe, sigmastar) / Dstar(pe, sigmastar))
         S = g(pe+tb_mat[0]) / gprime(pe+tb_mat[0]) * Cex2_prime - Vgx2_prime
         num = varphi * epsilonSstartilde * Qestar_prime -sigmastar * gprime(pe) * S / g(pe)
         denum =epsilonSstar*Qestar_prime + abs(Dstarprime(pe,sigmastar) / Dstar(pe,sigmastar)) * pe * Ceystar_prime
@@ -574,26 +602,27 @@ def comp_diff(consvals, jvals, Qes, Qestars, Qe_prime, Qestar_prime, Qeworld_pri
         diff1 = Qeworld_prime - Ceworld_prime
         
     if tax_scenario['tax_sce'] == 'purete':
-        numerator = varphi * epsilonSstar * Qestar_prime
+        numerator = varphi * epsilonSstartilde * Qestar_prime
         dcewdpe = abs(Dstarprime(pe,sigma) / Dstar(pe,sigma) * Cey_prime 
                       + Dstarprime(pe,sigmastar) / Dstar(pe,sigmastar) * Cex_prime 
                       + Dstarprime(pe,sigmastar) / Dstar(pe,sigmastar) * (Ceystar_prime + Cem_prime))
         denominator = epsilonSstar * Qestar_prime + dcewdpe * pe
         
         # te = varphi - consumption wedge
-        diff1 = (varphi - te) * denominator - numerator
+        #diff1 = (varphi - te) * denominator - numerator
+        diff1 = tb_mat[0] * denominator - numerator
         
     if tax_scenario['tax_sce'] == 'puretc':
         dcestardpe = abs(Dstarprime(pe,sigmastar) / Dstar(pe,sigmastar) * Cex_prime 
                       + Dstarprime(pe,sigmastar) / Dstar(pe,sigmastar) * (Ceystar_prime))
         
-        numerator = varphi * (epsilonS * Qe_prime + epsilonSstar * Qestar_prime)
-        denominator = (epsilonS * Qe_prime + epsilonSstar * Qestar_prime) + dcestardpe * pe
+        numerator = varphi * epsilonSwtilde * Qeworld_prime
+        denominator = epsilonSw * Qeworld_prime + dcestardpe * pe
         # border adjustment = consumption wedge
         diff1 = tb_mat[0] * denominator - numerator
         
     if tax_scenario['tax_sce'] == 'puretp':
-        numerator = varphi * epsilonSw * Qeworld_prime
+        numerator = varphi * epsilonSwtilde * Qeworld_prime
         ## energy price faced by home producers
         ve = pe+tb_mat[0]
         djxbardpe = theta * gprime(pe) / g(pe) * jxbar_prime * (1-jxbar_prime)
@@ -611,7 +640,7 @@ def comp_diff(consvals, jvals, Qes, Qestars, Qe_prime, Qestar_prime, Qeworld_pri
         dcestardpe = abs(Dstarprime(pe,sigmastar) / Dstar(pe,sigmastar) * Cex_prime 
                       + Dstarprime(pe,sigmastar) / Dstar(pe,sigmastar) * (Ceystar_prime))
         
-        numerator = varphi * epsilonSstar * Qestar_prime
+        numerator = varphi * epsilonSstartilde * Qestar_prime
         denominator = epsilonSstar * Qestar_prime + dcestardpe * pe
         # border adjustment = consumption wedge
         diff1 = tb_mat[0] * denominator - numerator
@@ -626,7 +655,7 @@ def comp_diff(consvals, jvals, Qes, Qestars, Qe_prime, Qestar_prime, Qeworld_pri
         dcemdpe = abs(Dstarprime(pe,sigma) / Dstar(pe,sigma) - (1+(1-sigma)/theta) / (1-jmbar_prime) * djmbardpe) * Cem_prime
         dceydpe = abs((1+(1-sigma)/theta) / jmbar_prime * djmbardpe) * Cey_prime
         
-        numerator = varphi * epsilonSstar * Qestar_prime 
+        numerator = varphi * epsilonSstartilde * Qestar_prime 
         denominator = epsilonSstar * Qestar_prime + (dceystardpe + dcemdpe)* pe- leak * (dcexdpe + dceydpe) *pe
         
         # tp equal to (1-leakge) * consumption wedge
@@ -641,7 +670,7 @@ def comp_diff(consvals, jvals, Qes, Qestars, Qe_prime, Qestar_prime, Qeworld_pri
         dceystardpe = abs(Dstarprime(pe, sigmastar) / Dstar(pe, sigmastar) - (1+(1-sigmastar) / theta) / (1-jxbar_prime) * djxbardpe) * Ceystar_prime
         dcexdpe = abs((1+(1-sigmastar) / theta) / (jxbar_prime) * djxbardpe) * Cex_prime
         
-        numerator = varphi * epsilonSw * Qeworld_prime
+        numerator = varphi * epsilonSwtilde * Qeworld_prime
         denominator = epsilonSw * Qeworld_prime + dceystardpe* pe - leak2 * dcexdpe *pe
         
         diff1 = (tb_mat[0] * denominator - numerator) 
@@ -656,7 +685,7 @@ def comp_diff(consvals, jvals, Qes, Qestars, Qe_prime, Qestar_prime, Qeworld_pri
         dceystardpe = abs(Dstarprime(pe, sigmastar) / Dstar(pe, sigmastar) - (1+(1-sigmastar) / theta) / (1-jxbar_prime) * djxbardpe) * Ceystar_prime
         dcexdpe = abs((1+(1-sigmastar) / theta) / (jxbar_prime) * djxbardpe) * Cex_prime
         
-        numerator = varphi * epsilonSstar * Qestar_prime
+        numerator = varphi * epsilonSstartilde * Qestar_prime
         denominator = epsilonSstar * Qestar_prime + dceystardpe* pe- leak2 * dcexdpe *pe
         
         # border adjustment = consumption wedge
