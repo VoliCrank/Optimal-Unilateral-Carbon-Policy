@@ -1,6 +1,6 @@
-*****Code File description*******
 
-**Python files:
+
+**Python files**:
 1. simulation_results/codes/simulation_code/ces_renewable_util.py contains functions and their helpers to calculate optimal prices for various policies (7 constrained policies as well as unilateral optimal). Note that tax_scenario = "global" is under construction so there may be bugs.
 In the same folder, ces_renewable.ipynb is the master file that calls functions in ces_renewable_util.py. One can adjust parameters (sigma, theta, varphi) or choose specific tax scenarios. However, to take advantage of ces production function, one needs to change alpha and rho variables in ces_renewable_util. To find alpha given rho, use the file calibrate_alpha.
 
@@ -8,7 +8,7 @@ In the same folder, ces_renewable.ipynb is the master file that calls functions 
 
 3. raw_data contains carbon flow matrix for 3 scenarios: no trade in goods, trade in goods with no renewable, and trade in goods with 13.3% of renewable energy.
 
-**Simulation results:
+**Simulation results:**
 All results have default parameters alpha = 0.15, rho = 0, sigma = sigma^* = 1, epsilonS = epsilonS^* = 0.5 unless otherwise specified.
 
 4. output contains simulation results for Cobb-Douglas production function (ces: rho = 0). output_case3 implies epsilonS = epsilonS^* = 0.5 while output_case3_D_2 are for epsilon = 0.5, epsilon^* = 2
