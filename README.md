@@ -6,3 +6,13 @@ In the same folder, ces_renewable.ipynb is the master file that calls functions 
 
 2. simulation_results/codes/plotting_code/figures_paper.ipynb generates all figures for the paper. Note that output_case3.csv and ces0.csv are identical results, except output_case3 was ran earlier with more phi values.
 
+3. raw_data contains carbon flow matrix for 3 scenarios: no trade in goods, trade in goods with no renewable, and trade in goods with 13.3% of renewable energy.
+
+**Simulation results:
+All results have default parameters alpha = 0.15, rho = 0, sigma = sigma^* = 1, epsilonS = epsilonS^* = 0.5 unless otherwise specified.
+
+4. output contains simulation results for Cobb-Douglas production function (ces: rho = 0). output_case3 implies epsilonS = epsilonS^* = 0.5 while output_case3_D_2 are for epsilon = 0.5, epsilon^* = 2
+
+5. output_sig0 contains simulation results for CES production function with various values of rho (rho = 0, 0.5 and -0.5).
+
+6. output_renewable contains simulation result for assuming world starts with 13.3% renewable energy with the same level of CO2 emissions as before (scale all observations by 0.867).
