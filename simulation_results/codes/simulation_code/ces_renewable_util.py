@@ -71,7 +71,8 @@ class tax_eq:
             print("did not converge init guess is", self.pe, self.tb_mat, 'region is', self.df['region_scenario'])
         return res.x
 
-    ## computes equilibrium price and taxes. Also computes other equilibrium values (ie consumption, production, value of exports/imports)
+    ## computes equilibrium price and taxes.
+    ## Also computes other equilibrium values (ie consumption, production, value of exports/imports)
     ## and stores them in self. 
     def opt_tax(self):
         tax_scenario = self.tax_scenario
@@ -112,10 +113,9 @@ class tax_eq:
             self.prop = opt_val[2]
             self.te = varphi
 
-        elif tax_scenario['tax_sce'] == 'Unilateral' or tax_scenario['tax_sce'] == 'puretc' or tax_scenario[
-            'tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EC_hybrid':
+        elif tax_scenario['tax_sce'] == 'Unilateral' or tax_scenario['tax_sce'] == 'puretc' or \
+                tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EC_hybrid':
             opt_val = self.min_obj(props, tbs, pes)
-
             self.tb = opt_val[1]
             self.prop = opt_val[2]
 
@@ -127,8 +127,7 @@ class tax_eq:
 
         elif tax_scenario['tax_sce'] == 'purete':
             res = minimize(self.find_eq, [self.pe, self.te], bounds=[(0.001, np.inf), (0, np.inf)],
-                           method='nelder-mead',
-                           tol=0.000001, options={'maxfev': 100000})
+                           method='nelder-mead',tol=0.000001, options={'maxfev': 100000})
             if res.fun > 0.0001:
                 self.conv = 0
                 print("did not converge, phi is", varphi, "init guess is", self.pe, self.tb_mat, 'region is',
@@ -239,11 +238,10 @@ def comp_jbar(pe, tb_mat, te, df, tax_scenario, varphi, paralist):
     Cex = df['CeFH']
     Ceystar = df['CeFF']
 
-    jxbar_hat = g(pe + tb_mat[0]) ** (-theta) * Cex / (
-            g(pe + tb_mat[0]) ** (-theta) * Cex + (g(pe) + tb_mat[0] * gprime(pe)) ** (-theta) * Ceystar) / df[
-                    'jxbar']
-    j0_hat = g(pe + tb_mat[0]) ** (-theta) * Cex / (
-            g(pe + tb_mat[0]) ** (-theta) * Cex + (g(pe)) ** (-theta) * Ceystar) / df['jxbar']
+    jxbar_prime = g(pe + tb_mat[0]) ** (-theta) * Cex / \
+                  (g(pe + tb_mat[0]) ** (-theta) * Cex + (g(pe) + tb_mat[0] * gprime(pe)) ** (-theta) * Ceystar)
+    j0_prime = g(pe + tb_mat[0]) ** (-theta) * Cex / \
+               (g(pe + tb_mat[0]) ** (-theta) * Cex + (g(pe)) ** (-theta) * Ceystar)
     jmbar_hat = 1
 
     if tax_scenario['tax_sce'] == 'Unilateral':
@@ -253,16 +251,16 @@ def comp_jbar(pe, tb_mat, te, df, tax_scenario, varphi, paralist):
     if tax_scenario['tax_sce'] == 'global':
         te = varphi
         tb_mat[0] = 0
-        jxbar_hat = 1
+        jxbar_prime = df['jxbar']
         jmbar_hat = 1
 
     if tax_scenario['tax_sce'] == 'purete':
-        jxbar_hat = 1
+        jxbar_prime = df['jxbar']
         jmbar_hat = 1
 
     if tax_scenario['tax_sce'] == 'puretc':
         te = tb_mat[0]
-        jxbar_hat = 1
+        jxbar_prime = df['jxbar']
         jmbar_hat = 1
         tb_mat[1] = 1
 
@@ -270,12 +268,12 @@ def comp_jbar(pe, tb_mat, te, df, tax_scenario, varphi, paralist):
         te = tb_mat[0]
         ve = pe + tb_mat[0]
         jmbar_hat = Cey * (g(pe) / g(ve)) ** theta / (Cey * (g(pe) / g(ve)) ** theta + Cem) / df['jmbar']
-        jxbar_hat = Cex * (g(pe) / g(ve)) ** theta / (Cex * (g(pe) / g(ve)) ** theta + Ceystar) / df['jxbar']
+        jxbar_prime = Cex * (g(pe) / g(ve)) ** theta / (Cex * (g(pe) / g(ve)) ** theta + Ceystar)
         tb_mat[1] = 1
 
     if tax_scenario['tax_sce'] == 'EC_hybrid':
         te = varphi
-        jxbar_hat = 1
+        jxbar_prime = df['jxbar']
         jmbar_hat = 1
         tb_mat[1] = 1
 
@@ -283,22 +281,20 @@ def comp_jbar(pe, tb_mat, te, df, tax_scenario, varphi, paralist):
         te = tb_mat[0]
         ve = pe + tb_mat[0] - tb_mat[0] * tb_mat[1]
         jmbar_hat = 1
-        jxbar_hat = Cex * (g(pe) / g(ve)) ** theta / (Cex * (g(pe) / g(ve)) ** theta + Ceystar) / df['jxbar']
+        jxbar_prime = Cex * (g(pe) / g(ve)) ** theta / (Cex * (g(pe) / g(ve)) ** theta + Ceystar)
 
     if tax_scenario['tax_sce'] == 'EP_hybrid':
         te = tb_mat[1]
         ve = pe + tb_mat[0]
         jmbar_hat = Cey * (g(pe) / g(ve)) ** theta / (Cey * (g(pe) / g(ve)) ** theta + Cem) / df['jmbar']
-        jxbar_hat = Cex * (g(pe) / g(ve)) ** theta / (Cex * (g(pe) / g(ve)) ** theta + Ceystar) / df['jxbar']
+        jxbar_prime = Cex * (g(pe) / g(ve)) ** theta / (Cex * (g(pe) / g(ve)) ** theta + Ceystar)
 
     if tax_scenario['tax_sce'] == 'EPC_hybrid':
         te = varphi
         ve = pe + tb_mat[0] - tb_mat[0] * tb_mat[1]
         jmbar_hat = 1
-        jxbar_hat = Cex * (g(pe) / g(ve)) ** theta / (Cex * (g(pe) / g(ve)) ** theta + Ceystar) / df['jxbar']
+        jxbar_prime = Cex * (g(pe) / g(ve)) ** theta / (Cex * (g(pe) / g(ve)) ** theta + Ceystar)
 
-    jxbar_prime = jxbar_hat * df['jxbar']
-    j0_prime = j0_hat * df['jxbar']
     jmbar_prime = jmbar_hat * df['jmbar']
     j_vals = (j0_prime, jxbar_prime, jmbar_hat, jmbar_prime)
 
@@ -329,18 +325,18 @@ def compute_qe(pe, tb_mat, te, df, paralist):
             petbte = 0
         epsS = epsilonSvec[i][0]
         prop = epsilonSvec[i][2]
-        Qe = df['Qe'] * prop * petbte ** epsS
-        Qe_prime += Qe
-        Qes.append(Qe)
+        Qe_r = df['Qe'] * prop * petbte ** epsS
+        Qe_prime += Qe_r
+        Qes.append(Qe_r)
 
     Qestars = []
     Qestar_prime = 0
     for i in range(len(epsilonSstarvec)):
         epsSstar = epsilonSstarvec[i][0]
         prop = epsilonSstarvec[i][2]
-        Qestar = df['Qestar'] * prop * pe ** epsSstar
-        Qestar_prime += Qestar
-        Qestars.append(Qestar)
+        Qestar_r = df['Qestar'] * prop * pe ** epsSstar
+        Qestar_prime += Qestar_r
+        Qestars.append(Qestar_r)
 
     return Qe_prime, Qestar_prime, Qes, Qestars
 
@@ -365,11 +361,11 @@ def comp_ce(pe, tb_mat, jvals, paralist, df, tax_scenario):
 
     #### new Cex1, Cex2
     Cex1_hat = Dstar(pe + tb_mat[0], sigmastar) / Dstar(1, sigmastar) * \
-               (j0_prime / df['jxbar']) ** (1 - sigmastartilde / theta)
+               (j0_prime / df['jxbar']) ** (1 - sigmastartilde)
 
     const = g(pe) ** (-sigmastar) * gprime(pe + tb_mat[0]) / (g(1) ** (-sigmastar) * gprime(1))
     frac = ((1 - df['jxbar']) / df['jxbar']) ** (sigmastar / theta) * (1 - sigmastartilde)
-    jterm = 1 / df['jxbar'] ** (1 - sigmastartilde / theta)
+    jterm = 1 / df['jxbar'] ** (1 - sigmastartilde)
     Cex2_hat = const * frac * jterm * (beta_fun_val2 - beta_fun_val1)
 
     Cex1_prime = df['CeFH'] * Cex1_hat
@@ -400,8 +396,8 @@ def comp_ce(pe, tb_mat, jvals, paralist, df, tax_scenario):
     Cem_prime = df['CeHF'] * Cem_hat
 
     # Ce^y*, foreign production for foreign consumption
-    Ceystar_prime = Dstar(pe, sigmastar) / Dstar(1, sigmastar) * df['CeFF'] * (
-            (1 - jxbar_prime) / (1 - df['jxbar'])) ** (1 - sigmatilde)
+    Ceystar_prime = Dstar(pe, sigmastar) / Dstar(1, sigmastar) * df['CeFF'] * \
+                    ((1 - jxbar_prime) / (1 - df['jxbar'])) ** (1 - sigmatilde)
 
     return Cey_prime, Cex1_prime, Cex2_prime, Cex_prime, Cem_prime, Ceystar_prime
 
@@ -409,12 +405,11 @@ def comp_ce(pe, tb_mat, jvals, paralist, df, tax_scenario):
 ## input: pe (price of energy), tb_mat, jvals (import/export threshold values)
 ##        consvals (tuple of energy consumption values), df, tax_scenario, paralist
 ## output: value of goods (import, export, domestic, foreign)
-def comp_vg(pe, tb_mat, jvals, consvals, df, tax_scenario, paralist):
+def comp_vg(pe, tb_mat, j_vals, cons_vals, df, tax_scenario, paralist):
     # unpack values from tuples
-    j0_prime, jxbar_prime, jmbar_hat, jmbar_prime = jvals
-    Cey_prime, Cex1_prime, Cex2_prime, Cex_prime, Cem_prime, Ceystar_prime = consvals
+    j0_prime, jxbar_prime, jmbar_hat, jmbar_prime = j_vals
+    Cey_prime, Cex1_prime, Cex2_prime, Cex_prime, Cem_prime, Ceystar_prime = cons_vals
     theta, sigma, sigmastar, epsilonSvec, epsilonSstarvec, beta, gamma, logit = paralist
-    sigmatilde = (sigma - 1) / theta
     sigmastartilde = (sigmastar - 1) / theta
 
     # BAU value of home and foreign spending on goods
@@ -480,7 +475,7 @@ def comp_ve(pe, tb_mat, tax_scenario, cons_vals):
 
 
 ## input: pe (price of energy), tb_mat (border adjustments), df, tax_scenario
-##        vg_vals (vector of value of spending on goods), paralist
+##        vg_vals (vector of value of spending on goods), paralist, j_vals (vector of import/export margins)
 ## output: Vg, Vg_prime, Vgstar, Vgstar_prime (values of home and foreign total spending on goods)
 ##         non prime values returned to simplify later computations
 def comp_vgfin(pe, tb_mat, df, tax_scenario, paralist, vg_vals, j_vals):
@@ -593,6 +588,7 @@ def comp_delta(pe, tb_mat, te, df, tax_scenario, varphi, paralist, Qeworld_prime
             tax_scenario['tax_sce'] == 'EC_hybrid':
         delta_Vgstar = -math.log(g(pe) / g(1)) * Vgstar
 
+    # note that jmbar_prime = jmbar in PC/EPC so second term in delta_Vg disappears
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid' or \
             tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
         delta_Vg = -(math.log(g(pe) / g(1)) + 1 / theta * math.log((1 - jmbar_prime) / (1 - df['jmbar']))) * Vg
@@ -629,9 +625,9 @@ def comp_chg(df, Qestar_prime, Gestar_prime, Cestar_prime, Qeworld_prime):
 ##        Cex_prime (energy in home export), paralist, tax_scenario, df
 ## output: marginal leakage (-(partial Gestar / partial re) / (partial Ge / partial re))
 ##         for different tax scenarios.
-def comp_mleak(pe, tb_mat, jvals, Cey_prime, Cem_prime, Cex_prime, Ceystar_prime, paralist, tax_scenario):
+def comp_mleak(pe, tb_mat, j_vals, Cey_prime, Cem_prime, Cex_prime, Ceystar_prime, paralist, tax_scenario):
     theta, sigma, sigmastar, epsilonSvec, epsilonSstarvec, beta, gamma, logit = paralist
-    j0_prime, jxbar_prime, jmbar_hat, jmbar_prime = jvals
+    j0_prime, jxbar_prime, jmbar_hat, jmbar_prime = j_vals
 
     ## ve is different for puretp/EP and PC/EPC
     ve = (pe + tb_mat[0])
