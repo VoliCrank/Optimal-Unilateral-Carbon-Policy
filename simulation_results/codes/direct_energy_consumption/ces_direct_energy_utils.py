@@ -611,7 +611,6 @@ def comp_delta(pe, tb_mat, te, df, tax_scenario, varphi, paralist, Qeworld_prime
     if sigmaE != 1:
         delta_UCec = sigmaE / (sigmaE - 1) * (Cec_prime ** ((sigmaE - 1) / sigmaE)
                                               * df['Cec'] ** (1 / sigmaE) - df['Cec'])
-
     if sigmaEstar != 1:
         delta_UCecstar = sigmaEstar / (sigmaEstar - 1) * (Cecstar_prime ** ((sigmaEstar - 1) / sigmaEstar)
                                                           * df['Cecstar'] ** (1 / sigmaEstar) - df['Cecstar'])
