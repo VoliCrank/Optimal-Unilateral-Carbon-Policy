@@ -647,7 +647,8 @@ def comp_chg(df, Qestar_prime, Gestar_prime, Cestar_prime, Qeworld_prime):
 ##        Cex_prime (energy in home export), paralist, tax_scenario, df
 ## output: marginal leakage (-(partial Gestar / partial re) / (partial Ge / partial re))
 ##         for different tax scenarios.
-def comp_mleak(pe, tb_mat, j_vals, Cey_prime, Cem_prime, Cex_prime, Ceystar_prime, paralist, tax_scenario):
+def comp_mleak(pe, tb_mat, j_vals, cons_vals, paralist, tax_scenario):
+    Cey_prime, Cex1_prime, Cex2_prime, Cex_prime, Cem_prime, Ceystar_prime, Cec_prime, Cecstar_prime = cons_vals
     theta, sigma, sigmastar, sigmaE, sigmaEstar, epsilonSvec, epsilonSstarvec, beta, gamma, logit = paralist
     j0_prime, jxbar_prime, jmbar_hat, jmbar_prime = j_vals
 
@@ -667,7 +668,7 @@ def comp_mleak(pe, tb_mat, j_vals, Cey_prime, Cem_prime, Cex_prime, Ceystar_prim
               (1 + (1 - sigmastar) / theta) * Cex_prime / jxbar_prime * djxdve
     dceystardve = (1 + (1 - sigmastar) / theta) * Ceystar_prime * (-djxdve) / (1 - jxbar_prime)
 
-    leak = -(dceystardve + dcemdve) / (dcexdve + dceydve)
+    leak = -(dceystardve + dcemdve + sigmaE * Cecstar_prime) / (dcexdve + dceydve)
     leakstar = -dceystardve / dcexdve
 
     return leak, leakstar
@@ -714,7 +715,7 @@ def comp_diff(pe, tb_mat, te, paralist, varphi, tax_scenario, Qes, Qestars, Qe_p
     theta, sigma, sigmastar, sigmaE, sigmaEstar, epsilonSvec, epsilonSstarvec, beta, gamma, logit = paralist
 
     # compute marginal leakage
-    leak, leak2 = comp_mleak(pe, tb_mat, j_vals, Cey_prime, Cem_prime, Cex_prime, Ceystar_prime, paralist, tax_scenario)
+    leak, leak2 = comp_mleak(pe, tb_mat, j_vals, cons_vals, paralist, tax_scenario)
 
     # compute world energy consumption and necessary elasticities
     Ceworld_prime = Cey_prime + Cex_prime + Cem_prime + Ceystar_prime + Cec_prime + Cecstar_prime
@@ -743,7 +744,8 @@ def comp_diff(pe, tb_mat, te, paralist, varphi, tax_scenario, Qes, Qestars, Qe_p
         numerator = varphi * epsilonSstartilde * Qestar_prime
         dcewdpe = abs(Dstarprime(pe, sigma) / Dstar(pe, sigma) * Cey_prime
                       + Dstarprime(pe, sigmastar) / Dstar(pe, sigmastar) * Cex_prime
-                      + Dstarprime(pe, sigmastar) / Dstar(pe, sigmastar) * (Ceystar_prime + Cem_prime))
+                      + Dstarprime(pe, sigmastar) / Dstar(pe, sigmastar) * (Ceystar_prime + Cem_prime)
+                      + sigmaE * Cec_prime + sigmaEstar * Cecstar_prime)
         denominator = epsilonSstar * Qestar_prime + dcewdpe * pe
 
         # te = varphi - consumption wedge
@@ -751,7 +753,8 @@ def comp_diff(pe, tb_mat, te, paralist, varphi, tax_scenario, Qes, Qestars, Qe_p
 
     if tax_scenario['tax_sce'] == 'puretc':
         dcestardpe = abs(Dstarprime(pe, sigmastar) / Dstar(pe, sigmastar) * Cex_prime
-                         + Dstarprime(pe, sigmastar) / Dstar(pe, sigmastar) * Ceystar_prime)
+                         + Dstarprime(pe, sigmastar) / Dstar(pe, sigmastar) * Ceystar_prime
+                         + sigmaEstar * Cecstar_prime)
 
         numerator = varphi * epsilonSwtilde * Qeworld_prime
         denominator = epsilonSw * Qeworld_prime + dcestardpe * pe
@@ -768,8 +771,9 @@ def comp_diff(pe, tb_mat, te, paralist, varphi, tax_scenario, Qes, Qestars, Qe_p
         dcemdpe = abs(Dstarprime(pe, sigma) / Dstar(pe, sigma)
                       - (1 + (1 - sigma) / theta) / (1 - jmbar_prime) * djmbardpe) * Cem_prime
         dceydpe = abs((1 + (1 - sigma) / theta) / jmbar_prime * djmbardpe) * Cey_prime
+        dcecstardpe = sigmaE * Cecstar_prime
 
-        denominator = epsilonSw * Qeworld_prime + (dceystardpe + dcemdpe) * pe - leak * (dcexdpe + dceydpe) * pe
+        denominator = epsilonSw * Qeworld_prime + (dceystardpe + dcemdpe + dcecstardpe) * pe - leak * (dcexdpe + dceydpe) * pe
         # border adjustment = (1-leakage) consumption wedge
         diff1 = tb_mat[0] * denominator - (1 - leak) * numerator
 
