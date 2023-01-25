@@ -415,7 +415,7 @@ def comp_vg(pe, tb_mat, j_vals, cons_vals, df, tax_scenario, paralist):
     # BAU value of home and foreign spending on goods
     Vgx = df['CeFH'] * g(1) / gprime(1)
 
-    Vgy_prime = g(pe + tb_mat[0]) / gprime(pe) * Cey_prime
+    Vgy_prime = g(pe + tb_mat[0]) / gprime(pe + tb_mat[0]) * Cey_prime
 
     ## Value of exports for unilateral optimal
     Vgx1_prime = (g(pe + tb_mat[0]) / g(1)) ** (1 - sigmastar) * (j0_prime / df['jxbar']) ** (1 - sigmastartilde) * Vgx
@@ -440,7 +440,7 @@ def comp_vg(pe, tb_mat, j_vals, cons_vals, df, tax_scenario, paralist):
     # final value of home export of good    
     Vgx_prime = Vgx * Vgx_hat
     Vgm_prime = g(pe + tb_mat[0]) / gprime(pe + tb_mat[0]) * Cem_prime
-    Vgystar_prime = g(pe) / gprime(pe) * Cey_prime
+    Vgystar_prime = g(pe) / gprime(pe) * Ceystar_prime
 
     return Vgy_prime, Vgm_prime, Vgx1_prime, Vgx2_prime, Vgx_prime, Vgystar_prime
 
@@ -588,10 +588,12 @@ def comp_delta(pe, tb_mat, te, df, tax_scenario, varphi, paralist, Qeworld_prime
             tax_scenario['tax_sce'] == 'EC_hybrid':
         delta_Vgstar = -math.log(g(pe) / g(1)) * Vgstar
 
-    # note that jmbar_prime = jmbar in PC/EPC so second term in delta_Vg disappears
-    if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid' or \
-            tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
+    if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
         delta_Vg = -(math.log(g(pe) / g(1)) + 1 / theta * math.log((1 - jmbar_prime) / (1 - df['jmbar']))) * Vg
+        delta_Vgstar = -(math.log(g(pe) / g(1)) + 1 / theta * math.log((1 - jxbar_prime) / (1 - df['jxbar']))) * Vgstar
+
+    if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
+        delta_Vg = -(math.log(g(pe + tb_mat[0]) / g(1))) * Vg
         delta_Vgstar = -(math.log(g(pe) / g(1)) + 1 / theta * math.log((1 - jxbar_prime) / (1 - df['jxbar']))) * Vgstar
 
     delta_U = delta_Vg + delta_Vgstar + const
