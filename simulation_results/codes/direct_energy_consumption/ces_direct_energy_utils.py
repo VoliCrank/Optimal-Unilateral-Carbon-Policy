@@ -362,6 +362,10 @@ def comp_ce(pe, tb_mat, jvals, paralist, df, tax_scenario):
     # compute incomplete beta values
     beta_fun_val1, beta_fun_val2 = incomp_betas(j0_prime, jxbar_prime, theta, sigmastar)
 
+    # direct consumption of energy
+    Cec_prime = df['Cec'] / (pe + tb_mat[0]) ** sigmaE
+    Cecstar_prime = df['Cecstar'] / pe ** sigmaEstar
+
     # Cey, jmbar_hat = 1 if not pure tp or EP hybrid
     Cey_prime = Dstar(pe + tb_mat[0], sigma) / (Dstar(1, sigma)) * df['CeHH'] * jmbar_hat ** (1 - sigmatilde)
 
@@ -385,10 +389,12 @@ def comp_ce(pe, tb_mat, jvals, paralist, df, tax_scenario):
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
         ve = pe + tb_mat[0]
         Cex_hat = Dstar(ve, sigmastar) / Dstar(1, sigmastar) * (jxbar_prime / df['jxbar']) ** (1 - sigmastartilde)
+        Cec_prime = df['Cec'] / (ve) ** sigmaE
 
     if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
         ve = pe + tb_mat[0] - tb_mat[1] * tb_mat[0]
         Cex_hat = Dstar(ve, sigmastar) / Dstar(1, sigmastar) * (jxbar_prime / df['jxbar']) ** (1 - sigmastartilde)
+        Cec_prime = df['Cec'] / (ve) ** sigmaE
 
 
     # final value for Cex
@@ -406,10 +412,6 @@ def comp_ce(pe, tb_mat, jvals, paralist, df, tax_scenario):
     # Cey*, foreign production for foreign consumption
     Ceystar_prime = Dstar(pe, sigmastar) / Dstar(1, sigmastar) * df['CeFF'] * (
             (1 - jxbar_prime) / (1 - df['jxbar'])) ** (1 - sigmatilde)
-
-    # TODO change to incoporate ve in Cec_prime calculation
-    Cec_prime = df['Cec'] / (pe + tb_mat[0]) ** sigmaE
-    Cecstar_prime = df['Cecstar'] / pe ** sigmaEstar
 
     return Cey_prime, Cex1_prime, Cex2_prime, Cex_prime, Cem_prime, Ceystar_prime, Cec_prime, Cecstar_prime
 
@@ -594,6 +596,10 @@ def comp_delta(pe, tb_mat, te, df, tax_scenario, varphi, paralist, Qeworld_prime
     delta_Vg = -math.log(g(pe + tb_mat[0]) / g(1)) * Vg
     delta_Vgstar = -(math.log(g(pe) / g(1)) + 1 / theta * math.log((1 - j0_prime) / (1 - df['jxbar']))) * Vgstar
 
+    # change in direct consumption of energy that enters welfare change
+    delta_UCec = -df['Cec'] * sigmaE * math.log(pe + tb_mat[0])
+    delta_UCecstar = -df['Cecstar'] * sigmaEstar * math.log(pe)
+
     if tax_scenario['tax_sce'] == 'puretc' or tax_scenario['tax_sce'] == 'purete' or \
             tax_scenario['tax_sce'] == 'EC_hybrid':
         delta_Vgstar = -math.log(g(pe) / g(1)) * Vgstar
@@ -605,10 +611,8 @@ def comp_delta(pe, tb_mat, te, df, tax_scenario, varphi, paralist, Qeworld_prime
     if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
         delta_Vg = -(math.log(g(pe + tb_mat[0]) / g(1))) * Vg
         delta_Vgstar = -(math.log(g(pe) / g(1)) + 1 / theta * math.log((1 - jxbar_prime) / (1 - df['jxbar']))) * Vgstar
+        delta_UCec = -df['Cec'] * sigmaE * math.log(pe + tb_mat[0] - tb_mat[1] * tb_mat[0])
 
-    # change in direct consumption of energy that enters welfare change
-    delta_UCec = -df['Cec'] * sigmaE * math.log(pe + tb_mat[0])
-    delta_UCecstar = -df['Cecstar'] * sigmaEstar * math.log(pe)
     if sigmaE != 1:
         delta_UCec = sigmaE / (sigmaE - 1) * (Cec_prime ** ((sigmaE - 1) / sigmaE)
                                               * df['Cec'] ** (1 / sigmaE) - df['Cec'])
@@ -650,7 +654,7 @@ def comp_chg(df, Qestar_prime, Gestar_prime, Cestar_prime, Qeworld_prime):
 
 ## input: pe (price of energy), tb_mat (border adjustments), Cey_prime (home consumption of energy on goods produced at home)
 ##        Cex_prime (energy in home export), paralist, tax_scenario, df
-## output: marginal leakage (-(partial Gestar / partial re) / (partial Ge / partial re))
+## output: marginal leakage (-(partial Gestar / partial ve) / (partial Ge / partial ve))
 ##         for different tax scenarios.
 def comp_mleak(pe, tb_mat, j_vals, cons_vals, paralist, tax_scenario):
     Cey_prime, Cex1_prime, Cex2_prime, Cex_prime, Cem_prime, Ceystar_prime, Cec_prime, Cecstar_prime = cons_vals
