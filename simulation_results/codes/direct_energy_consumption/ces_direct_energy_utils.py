@@ -170,7 +170,7 @@ class tax_eq:
         j0_prime, jxbar_prime, jmbar_hat, jmbar_prime = j_vals
 
         # compute extraction values    
-        Qe_vals = compute_qe(pe, tb_mat, te, df, paralist)
+        Qe_vals = compute_qe(tax_scenario,pe, tb_mat, te, df, paralist)
         Qe_prime, Qestar_prime, Qes, Qestars = Qe_vals
         Qeworld_prime = Qe_prime + Qestar_prime
 
@@ -206,6 +206,9 @@ class tax_eq:
         # measure welfare and welfare with no emission externality
         welfare = delta_U / Vg * 100
         welfare_noexternality = (delta_U + varphi * (Qeworld_prime - df['Qeworld'])) / Vg * 100
+        if tax_scenario['tax_sce'] == 'global':
+            welfare = delta_U / (Vg + Vgstar) * 100
+            welfare_noexternality = (delta_U + varphi * (Qeworld_prime - df['Qeworld'])) / (Vg + Vgstar) * 100
 
         self.results = assign_val(pe, varphi, Qeworld_prime, ve_vals, vg_vals, vgfin_vals, delta_vals, chg_vals,
                                   leak_vals, lg_vals, subsidy_ratio, Qe_vals, welfare, welfare_noexternality, j_vals,
@@ -320,7 +323,7 @@ def incomp_betas(j0_prime, jxbar_prime, theta, sigmastar):
 
 ## input: pe (price of energy), tb_mat (tax vector), te (nomial extraction tax), df, paralist
 ## output: home and foreign extraction values
-def compute_qe(pe, tb_mat, te, df, paralist):
+def compute_qe(tax_scenario,pe, tb_mat, te, df, paralist):
     theta, sigma, sigmastar, sigmaE, sigmaEstar, epsilonSvec, epsilonSstarvec, beta, gamma, logit = paralist
 
     Qes = []
@@ -341,6 +344,8 @@ def compute_qe(pe, tb_mat, te, df, paralist):
         epsSstar = epsilonSstarvec[i][0]
         prop = epsilonSstarvec[i][2]
         Qestar_r = df['Qestar'] * prop * pe ** epsSstar
+        if tax_scenario['tax_sce'] == 'global':
+            Qestar_r = df['Qestar'] * prop * (pe - te) ** epsSstar
         Qestar_prime += Qestar_r
         Qestars.append(Qestar_r)
 
@@ -389,12 +394,12 @@ def comp_ce(pe, tb_mat, jvals, paralist, df, tax_scenario):
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
         ve = pe + tb_mat[0]
         Cex_hat = Dstar(ve, sigmastar) / Dstar(1, sigmastar) * (jxbar_prime / df['jxbar']) ** (1 - sigmastartilde)
-        Cec_prime = df['Cec'] / (ve) ** sigmaE
+        Cec_prime = df['Cec'] / ve ** sigmaE
 
     if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
         ve = pe + tb_mat[0] - tb_mat[1] * tb_mat[0]
         Cex_hat = Dstar(ve, sigmastar) / Dstar(1, sigmastar) * (jxbar_prime / df['jxbar']) ** (1 - sigmastartilde)
-        Cec_prime = df['Cec'] / (ve) ** sigmaE
+        Cec_prime = df['Cec'] / ve ** sigmaE
 
 
     # final value for Cex
@@ -522,7 +527,6 @@ def comp_lg(pe, tb_mat, df, tax_scenario, cons_vals):
     Cey_prime, Cex1_prime, Cex2_prime, Cex_prime, Cem_prime, Ceystar_prime, Cec_prime, Cecstar_prime = cons_vals
 
     ## labour employed in production in home
-    #TODO change to reflect new definition, write as a sum df['CeHH'] + df['Cex']
     Lg = 1 / k(1) * (df['CeHH'] + df['CeFH'])
     Lg_prime = 1 / k(pe + tb_mat[0]) * (Cey_prime + Cex_prime)
 
