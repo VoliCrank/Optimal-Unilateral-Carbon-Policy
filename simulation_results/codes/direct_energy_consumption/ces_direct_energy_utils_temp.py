@@ -794,7 +794,7 @@ def comp_diff(pe, tb_mat, te, paralist, varphi, tax_scenario, Qes, Qestars, Qe_p
         dcemdpe = (Dstarprime(pe, sigma) / Dstar(pe, sigma)
                       - (1 + (1 - sigma) / theta) / (1 - jmbar_prime) * djmbardpe) * Cem_prime
         dceydpe = ((1 + (1 - sigma) / theta) / jmbar_prime * djmbardpe) * Cey_prime
-        dcedstardpe = -sigmaEstar * Cedstar_prime
+        dcedstardpe = -sigmaEstar * Cedstar_prime / pe
         dcewdpe = abs(dceydpe + dcexdpe + dcemdpe + dceystardpe + dcedstardpe)
         dgestardpe = abs(dcemdpe + dceystardpe + dcedstardpe)
         #print(dceydpe, dcexdpe, dcemdpe, dceystardpe)

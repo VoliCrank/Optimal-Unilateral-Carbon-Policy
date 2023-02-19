@@ -676,7 +676,7 @@ def comp_mleak(pe, tb_mat, j_vals, cons_vals, paralist, tax_scenario):
         ve = (pe + tb_mat[0] - tb_mat[1] * tb_mat[0])
     # if not a production tax, return 0
     if ve == 0:
-        return 0,0
+        return 0, 0
 
     ## leakage for PC, EPC taxes
     djxdve = -jxbar_prime * (1 - jxbar_prime) * gprime(ve) / g(ve) * theta
@@ -789,45 +789,28 @@ def comp_diff(pe, tb_mat, te, paralist, varphi, tax_scenario, Qes, Qestars, Qe_p
     if tax_scenario['tax_sce'] == 'puretp' or tax_scenario['tax_sce'] == 'EP_hybrid':
         djxbardpe = theta * gprime(pe) / g(pe) * jxbar_prime * (1 - jxbar_prime)
         djmbardpe = theta * gprime(pe) / g(pe) * jmbar_prime * (1 - jmbar_prime)
-        dceystardpe = (Dstarprime(pe, sigmastar) / Dstar(pe, sigmastar) - (1 + (1 - sigmastar) / theta) / (
-                    1 - jxbar_prime)) * djxbardpe * Ceystar_prime
+        dceystardpe = (Dstarprime(pe, sigmastar) / Dstar(pe, sigmastar)
+                       - (1 + (1 - sigmastar) / theta) / (1 - jxbar_prime) * djxbardpe) * Ceystar_prime
         dcexdpe = (1 + (1 - sigmastar) / theta) / jxbar_prime * djxbardpe * Cex_prime
-        dcemdpe = (Dstarprime(pe, sigma) / Dstar(pe, sigma) - (1 + (1 - sigma) / theta) / (
-                    1 - jmbar_prime) * djmbardpe) * Cem_prime
+        #dcexdpe = ((1 + (1 - sigmastar) / theta) / (jxbar_prime) * djxbardpe) * Cex_prime
+        dcemdpe = (Dstarprime(pe, sigma) / Dstar(pe, sigma)
+                   - (1 + (1 - sigma) / theta) / (1 - jmbar_prime) * djmbardpe) * Cem_prime
         dceydpe = ((1 + (1 - sigma) / theta) / jmbar_prime * djmbardpe) * Cey_prime
         dcedstardpe = -sigmaEstar * Cedstar_prime / pe
-        dgestardpe = abs(dceystardpe + dcexdpe + dcedstardpe)
-        dcewdpe = abs(dceydpe + dcexdpe + dcemdpe + dcexdpe + dcedstardpe)
 
         numerator = varphi * epsilonSwtilde * Qeworld_prime
-        denominator = epsilonSw * Qeworld_prime + leak * dgestardpe * pe + (1 - leak) * dcewdpe * pe
+        denominator = (epsilonSw * Qeworld_prime - (dceystardpe + dcemdpe + dcedstardpe) * pe
+                       - leak * (dcexdpe + dceydpe) * pe)
+        #denominator = epsilonSw * Qeworld_prime + (1-leak) * dgestardpe * pe + leak * dcewdpe * pe
         if tax_scenario['tax_sce'] == 'EP_hybrid':
             numerator = varphi * epsilonSstartilde * Qestar_prime
-            denominator = epsilonSstar * Qestar_prime + (1-leak) * dgestardpe * pe + leak * dcewdpe * pe
-            diff2 = (varphi - te) * denominator - leak * numerator
+            denominator = (epsilonSstar * Qestar_prime - (dceystardpe + dcemdpe + dcedstardpe) * pe
+                           - leak * (dcexdpe + dceydpe) * pe)
+            #denominator = epsilonSstar * Qestar_prime + (1 - leak) * dgestardpe * pe + leak * dcewdpe * pe
+            diff2 = (varphi - tb_mat[1]) * denominator - leak * numerator
 
         # border adjustment = (1-leakage) consumption wedge
         diff1 = tb_mat[0] * denominator - (1 - leak) * numerator
-    ## TODO fix issue where Ced = 0 is not remotely close to the previous answers
-    # if tax_scenario['tax_sce'] == 'EP_hybrid':
-    #     ## energy price faced by home producers
-    #     djxbardpe = theta * gprime(pe) / g(pe) * jxbar_prime * (1 - jxbar_prime)
-    #     djmbardpe = theta * gprime(pe) / g(pe) * jmbar_prime * (1 - jmbar_prime)
-    #     dceystardpe = abs(Dstarprime(pe, sigmastar) / Dstar(pe, sigmastar)
-    #                       - (1 + (1 - sigmastar) / theta) / (1 - jxbar_prime) * djxbardpe) * Ceystar_prime
-    #     dcexdpe = abs((1 + (1 - sigmastar) / theta) / (jxbar_prime) * djxbardpe) * Cex_prime
-    #     dcemdpe = abs(Dstarprime(pe, sigma) / Dstar(pe, sigma)
-    #                   - (1 + (1 - sigma) / theta) / (1 - jmbar_prime) * djmbardpe) * Cem_prime
-    #     dceydpe = abs((1 + (1 - sigma) / theta) / jmbar_prime * djmbardpe) * Cey_prime
-    #     dcecstardpe = sigmaEstar * Cedstar_prime
-    #
-    #     numerator = varphi * epsilonSstartilde * Qestar_prime
-    #     denominator = epsilonSstar * Qestar_prime + (dceystardpe + dcemdpe + dcecstardpe) * pe - leak * (dcexdpe + dceydpe) * pe
-    #
-    #     # tp equal to (1-leakage) * consumption wedge
-    #     diff1 = tb_mat[0] * denominator - (1 - leak) * numerator
-    #     # requires nominal extraction tax to be equal to te + tp
-    #     diff2 = (varphi - tb_mat[1]) * denominator - leak * numerator
 
     if tax_scenario['tax_sce'] == 'PC_hybrid' or tax_scenario['tax_sce'] == 'EPC_hybrid':
         djxbardpe = theta * gprime(pe) / g(pe) * jxbar_prime * (1 - jxbar_prime)
@@ -836,14 +819,15 @@ def comp_diff(pe, tb_mat, te, paralist, varphi, tax_scenario, Qes, Qestars, Qe_p
         dcexdpe = ((1 + (1 - sigmastar) / theta) / jxbar_prime * djxbardpe) * Cex_prime
         dcedstardpe = -sigmaEstar * Cedstar_prime / pe
 
-        dcezstardpe = abs(dceystardpe + dcedstardpe)
-        dcestardpe = abs(dceystardpe + dcedstardpe + dcexdpe)
+        dcezstardpe = dceystardpe + dcedstardpe
 
         numerator = varphi * epsilonSwtilde * Qeworld_prime
-        denominator = epsilonSstar * Qestar_prime + leakstar * dcezstardpe * pe + (1 - leakstar) * dcestardpe * pe
+        # denominator = epsilonSstar * Qestar_prime + leakstar * dcezstardpe * pe + (1 - leakstar) * dcestardpe * pe
+        denominator = epsilonSw * Qeworld_prime - dcezstardpe * pe - leakstar * dcexdpe * pe
         if tax_scenario['tax_sce'] == 'EPC_hybrid':
             numerator = varphi * epsilonSstartilde * Qestar_prime
-            denominator = epsilonSstar * Qestar_prime + leakstar * dcezstardpe * pe + (1 - leakstar) * dcestardpe * pe
+            # denominator = epsilonSstar * Qestar_prime + leakstar * dcezstardpe * pe + (1 - leakstar) * dcestardpe * pe
+            denominator = epsilonSstar * Qestar_prime - dcezstardpe * pe - leakstar * dcexdpe * pe
 
         diff1 = tb_mat[0] * denominator - numerator
         # border rebate for exports tb[1] * tb[0] = leakage * tc
