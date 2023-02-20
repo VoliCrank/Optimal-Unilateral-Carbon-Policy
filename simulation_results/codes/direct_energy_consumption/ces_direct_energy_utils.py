@@ -178,7 +178,7 @@ class tax_eq:
         # compute consumption values
         cons_vals = comp_ce(pe, tb_mat, j_vals, paralist, df, tax_scenario)
         Cey_prime, Cex1_prime, Cex2_prime, Cex_prime, Cem_prime, Ceystar_prime, Ced_prime, Cedstar_prime = cons_vals
-        Gestar_prime = Ceystar_prime + Cem_prime
+        Gestar_prime = Ceystar_prime + Cem_prime + Cedstar_prime
         Cestar_prime = Ceystar_prime + Cex_prime + Cedstar_prime
 
         # compute spending on goods
