@@ -643,7 +643,7 @@ def comp_leak(Qestar_prime, Gestar_prime, Cestar_prime, Qeworld_prime, df):
     leakage1 = -(Qestar_prime - df['Qestar']) / (Qeworld_prime - df['Qeworld'])
     leakage2 = -(Gestar_prime - df['Gestar']) / (Qeworld_prime - df['Qeworld'])
     leakage3 = -(Cestar_prime - df['Cestar']) / (Qeworld_prime - df['Qeworld'])
-
+    print(leakage2)
     return leakage1, leakage2, leakage3
 
 
