@@ -108,6 +108,7 @@ class taxModel:
         return res
 
     def te_obj(self, p, phi, tax, region_data):
+        p = abs(p)
         pe = p[0]
         te = p[1]
         tb_mat= [0,1]
