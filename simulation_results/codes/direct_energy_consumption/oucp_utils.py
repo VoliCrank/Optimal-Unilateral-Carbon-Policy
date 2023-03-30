@@ -4,6 +4,7 @@ import pandas as pd
 from sympy import *
 from scipy.integrate import quad
 from scipy.optimize import minimize
+from scipy.optimize import fsolve
 
 
 # class object for finding equilibrium taxes
@@ -29,59 +30,24 @@ class taxModel:
                     # solve model for given phi, tax scenario, region, and guesses for pe, tb, and prop
                     price = self.solveOne(phi, tax, region_data, pe_prev, tb_prev, prop_prev, te_prev)
                     # set new guess to result of previous simulation
-                    pe_prev, tb_prev, prop_prev, te_prev = price
+                    pe_prev, tb_prev, prop_prev, te_prev, conv = price
                     prices.append((phi, price))
                     print(phi)
                 res = pd.Series({'region_data': region_data, 'tax': tax, 'prices': prices})
                 self.res.append(res)
 
     def solveOne(self, phi, tax, region_data, pe, tb, prop, te):
-        # pick values that are close to the previous guess
-        pe_min = max(pe- 0.5, 0.1)
-        tb_min = max(tb- 0.5, 0)
-        prop_min = max(prop - 0.5, 0)
-        pes = np.append([pe], np.arange(pe_min, pe + 0.5, 0.2))
-        tbs = np.append([tb], np.arange(tb_min, tb + 0.5, 0.2))
-        props = np.append([prop], np.arange(prop_min, prop + 0.5, 0.5))
-        # initialize, does not affect final value
-        opt_val = [1]
-
         if tax == 'global':
-            tbs = [0]
-            props = [0]
-            opt_val = self.min_obj(props, tbs, pes, phi, tax, region_data)
+            res = self.solve_obj(phi, tax, region_data)
+            opt_val = res[0]
 
             tb = 0
             te = phi
             prop = 0
 
-        elif tax == 'PC_hybrid':
-            opt_val = self.min_obj(props, tbs, pes, phi, tax, region_data)
-
-            tb = opt_val[1]
-            prop = opt_val[2]
-            te = tb
-
-        elif tax == 'EP_hybrid':
-            pes = np.append([pe], np.arange(pe_min, pe + 0.5, 0.3))
-            tbs = np.append([tb], np.arange(tb_min, tb + 0.5, 0.3))
-            props = np.append([prop], np.arange(prop_min, prop+1, 0.2))
-            opt_val = self.min_obj(props, tbs, pes, phi, tax, region_data, [(0.01, np.inf), (0, np.inf), (0, np.inf)])
-
-            tb = opt_val[1]
-            te = opt_val[2]
-            prop = 0
-
-        elif tax == 'EPC_hybrid':
-            opt_val = self.min_obj(props, tbs, pes, phi, tax, region_data)
-
-            tb = opt_val[1]
-            prop = opt_val[2]
-            te = phi
-
         elif tax in ['Unilateral', 'puretc', 'puretp', 'EC_hybrid']:
-            props = [prop]
-            opt_val = self.min_obj(props, tbs, pes, phi, tax, region_data)
+            res = self.solve_obj(phi, tax, region_data)
+            opt_val = res[0]
 
             tb = opt_val[1]
             prop = 0
@@ -91,46 +57,74 @@ class taxModel:
                 te = tb
 
         elif tax == 'purete':
-            res = minimize(self.find_eq, [pe, te], bounds=[(0.001, np.inf), (0, np.inf)], args=(phi, tax, region_data),
-                           method='nelder-mead', tol=0.000001, options={'maxfev': 100000})
-            if res.fun > 0.0001:
-                print("did not converge, phi is", phi, "init guess is", pe, tb, 'region is',
-                      tax, region_data['regionbase'])
-            opt_val = res.x
+            res = fsolve(self.te_obj, [1,0], args = (phi, tax, region_data), full_output = True, maxfev = 100000)
+            opt_val = res[0]
             te = opt_val[1]
 
+
+        elif tax == 'PC_hybrid':
+            res = self.solve_obj(phi, tax, region_data, init_guess = [pe, tb, prop])
+            opt_val = res[0]
+
+            tb = opt_val[1]
+            prop = opt_val[2]
+            te = tb
+
+        elif tax == 'EP_hybrid':
+            res = self.solve_obj(phi, tax, region_data)
+            opt_val = res[0]
+
+            tb = opt_val[1]
+            te = opt_val[2]
+            prop = 0
+
+        elif tax == 'EPC_hybrid':
+            #opt_val = self.min_obj(props, tbs, pes, phi, tax, region_data)
+            res = self.solve_obj(phi, tax, region_data, init_guess = [pe, tb, prop])
+            opt_val = res[0]
+
+            tb = opt_val[1]
+            prop = opt_val[2]
+            te = phi
+
+        else:
+            # tax scenario incorrect
+            res = [0, 0, 0]
+            opt_val = [0]
+
         pe = opt_val[0]
-        return pe, tb, prop, te
+        conv = res[2]
+        return pe, tb, prop, te, conv
 
-    def min_obj(self, props, tbs, pes, phi, tax, region_data, bounds=[(0.01, np.inf), (0, np.inf), (0, 1)]):
-        for prop in props:
-            for tb in tbs:
-                for pe in pes:
-                    res = minimize(self.find_eq, [pe, tb, prop], bounds=bounds, args=(phi, tax, region_data),
-                                   method='nelder-mead', tol=0.000001, options={'maxfev': 100000})
-                    if res.fun <= 0.0001:
-                        break
-                else:
-                    continue
-                break
-            else:
-                continue
-            break
-        if res.fun > 0.0001:
-            print('did not converge, region is', region_data['regionbase'])
-        return res.x
+    def solve_obj(self, phi, tax, region_data, init_guess = [1,0,0.5], verbose = True, second_try = True):
+        res = fsolve(self.obj_system, init_guess, args = (phi, tax, region_data), full_output = True, maxfev=100000)
+        if res[2] != 1:
+            if verbose:
+                print("did not converge, tax is", tax, "region is", region_data['regionbase'], 'phi is', phi, 'guess is', init_guess)
+            if second_try:
+                res = fsolve(self.obj_system, [1,0.5,0.5], args = (phi, tax, region_data), full_output = True, maxfev=100000)
+                if res[2] == 1 and verbose:
+                    print('converged on second try')
+        return res
 
-    # returns objective value given vector of pe, tb, and te
-    def find_eq(self, p, phi, tax, region_data):
+    def te_obj(self, p, phi, tax, region_data):
+        pe = p[0]
+        te = p[1]
+        tb_mat= [0,1]
+        diff, diff1, diff2 = self.comp_obj(pe, te, tb_mat, phi, tax, region_data)
+
+        return diff, diff1
+
+    def obj_system(self, p, phi, tax, region_data):
+        p = abs(p)
         pe = p[0]
         # combine tb and prop into one vector of tb_mat
         tb_mat = p[1:]
         te = phi
-        if tax == 'purete':
-            te = p[1]
-            tb_mat = [0, 1]
 
-        return self.comp_obj(pe, te, tb_mat, phi, tax, region_data)
+        diff, diff1, diff2 = self.comp_obj(pe, te, tb_mat, phi, tax, region_data)
+
+        return diff, diff1, diff2
 
     # compute the objective value, currently the objective is to minimize difference between equilibrium condition
     # which is equivalent to finding the root since we force their difference to be 0
@@ -161,10 +155,10 @@ class taxModel:
             denum = region_data['jxbar'] * (1 - region_data['jxbar']) ** (-sigmatilde)
             Vgx2_prime = pterm * num / denum
 
-        obj_val = self.comp_diff(pe, tb_mat, te, phi, Qes, Qestars, Qe_prime, Qestar_prime, j_vals, cons_vals,
+        diff, diff1, diff2 = self.comp_diff(pe, tb_mat, te, phi, Qes, Qestars, Qe_prime, Qestar_prime, j_vals, cons_vals,
                                  Vgx2_prime, tax)
 
-        return obj_val
+        return diff, diff1, diff2
 
     def retrieve(self, filename = ""):
         filled_results = []
@@ -173,11 +167,12 @@ class taxModel:
             tax = price_scenario['tax']
             prices = price_scenario['prices']
 
-            for (phi, (pe, tb, prop, te)) in prices:
+            for (phi, (pe, tb, prop, te, conv)) in prices:
                 tb_mat = [tb, prop]
                 res = self.comp_all(pe, te, tb_mat, phi, tax, region_data)
-                res['region'] = region_data['regionbase']
+                res['regionbase'] = region_data['regionbase']
                 res['tax_sce'] = tax
+                res['conv'] = conv
                 filled_results.append(res)
 
         # convert the list of pandas series into a pandas dataframe
@@ -185,9 +180,9 @@ class taxModel:
 
         # order columns
         cols = list(df.columns.values)
-        cols.pop(cols.index('region'))
+        cols.pop(cols.index('regionbase'))
         cols.pop(cols.index('tax_sce'))
-        df = df[['region', 'tax_sce'] + cols]
+        df = df[['regionbase', 'tax_sce'] + cols]
         if filename != "":
             df.to_csv(filename, header=True)
         return df
@@ -837,8 +832,8 @@ class taxModel:
             # border rebate for exports tb[1] * tb[0] = leakage * tc
             diff2 = (tb_mat[1] * tb_mat[0]) * denominator - leakstar * numerator
 
-        # weight the difference for better performance
-        return abs(diff) + abs(diff1 * 2) + abs(diff2 * 2)
+
+        return diff, diff1, diff2
 
     # assign values to return later
     def assign_val(self, pe, tb_mat, te, phi, Qeworld_prime, ve_vals, vg_vals, vgfin_vals, delta_vals, chg_vals,
