@@ -57,13 +57,13 @@ class taxModel:
                 te = tb
 
         elif tax == 'purete':
-            res = fsolve(self.te_obj, [1,0], args = (phi, tax, region_data), full_output = True, maxfev = 100000)
+            res = fsolve(self.te_obj, [1, 0], args=(phi, tax, region_data), full_output=True, maxfev=100000)
             opt_val = res[0]
             te = opt_val[1]
 
 
         elif tax == 'PC_hybrid':
-            res = self.solve_obj(phi, tax, region_data, init_guess = [pe, tb, prop])
+            res = self.solve_obj(phi, tax, region_data, init_guess=[pe, tb, prop])
             opt_val = res[0]
 
             tb = opt_val[1]
@@ -79,8 +79,8 @@ class taxModel:
             prop = 0
 
         elif tax == 'EPC_hybrid':
-            #opt_val = self.min_obj(props, tbs, pes, phi, tax, region_data)
-            res = self.solve_obj(phi, tax, region_data, init_guess = [pe, tb, prop])
+            # opt_val = self.min_obj(props, tbs, pes, phi, tax, region_data)
+            res = self.solve_obj(phi, tax, region_data, init_guess=[pe, tb, prop])
             opt_val = res[0]
 
             tb = opt_val[1]
@@ -96,13 +96,15 @@ class taxModel:
         conv = res[2]
         return pe, tb, prop, te, conv
 
-    def solve_obj(self, phi, tax, region_data, init_guess = [1,0,0.5], verbose = True, second_try = True):
-        res = fsolve(self.obj_system, init_guess, args = (phi, tax, region_data), full_output = True, maxfev=100000)
+    def solve_obj(self, phi, tax, region_data, init_guess=[1, 0, 0.5], verbose=True, second_try=True):
+        res = fsolve(self.obj_system, init_guess, args=(phi, tax, region_data), full_output=True, maxfev=100000)
         if res[2] != 1:
             if verbose:
-                print("did not converge, tax is", tax, "region is", region_data['regionbase'], 'phi is', phi, 'guess is', init_guess)
+                print("did not converge, tax is", tax, "region is", region_data['regionbase'], 'phi is', phi,
+                      'guess is', init_guess)
             if second_try:
-                res = fsolve(self.obj_system, [1,0.5,0.5], args = (phi, tax, region_data), full_output = True, maxfev=100000)
+                res = fsolve(self.obj_system, [1, 0.5, 0.5], args=(phi, tax, region_data), full_output=True,
+                             maxfev=100000)
                 if res[2] == 1 and verbose:
                     print('converged on second try')
         return res
@@ -111,7 +113,7 @@ class taxModel:
         p = abs(p)
         pe = p[0]
         te = p[1]
-        tb_mat= [0,1]
+        tb_mat = [0, 1]
         diff, diff1, diff2 = self.comp_obj(pe, te, tb_mat, phi, tax, region_data)
 
         return diff, diff1
@@ -156,12 +158,12 @@ class taxModel:
             denum = region_data['jxbar'] * (1 - region_data['jxbar']) ** (-sigmatilde)
             Vgx2_prime = pterm * num / denum
 
-        diff, diff1, diff2 = self.comp_diff(pe, tb_mat, te, phi, Qes, Qestars, Qe_prime, Qestar_prime, j_vals, cons_vals,
-                                 Vgx2_prime, tax)
+        diff, diff1, diff2 = self.comp_diff(pe, tb_mat, te, phi, Qes, Qestars, Qe_prime, Qestar_prime, j_vals,
+                                            cons_vals,Vgx2_prime, tax)
 
         return diff, diff1, diff2
 
-    def retrieve(self, filename = ""):
+    def retrieve(self, filename=""):
         filled_results = []
         for price_scenario in self.res:
             region_data = price_scenario['region_data']
@@ -188,6 +190,52 @@ class taxModel:
             df.to_csv(filename, header=True)
         return df
 
+    # compute welfare
+    def comp_welfare(self, p, phi, tax, region_data):
+        pe = p[0]
+        tb_mat = p[1:]
+        lamb = p[-1]
+        te = phi
+        if tax == 'purete':
+            te = p[1]
+            tb_mat = [0, 1]
+
+        ## compute extraction tax, and import/export thresholds
+        te, tb_mat, j_vals = self.comp_jbar(pe, tb_mat, te, region_data, tax, phi)
+
+        # compute extraction values
+        Qe_vals = self.comp_qe(tax, pe, tb_mat, te, region_data)
+        Qe_prime, Qestar_prime, Qes, Qestars = Qe_vals
+        Qeworld_prime = Qe_prime + Qestar_prime
+
+        # compute consumption values
+        cons_vals = self.comp_ce(pe, tb_mat, j_vals, tax, region_data)
+        Cey_prime, Cex1_prime, Cex2_prime, Cex_prime, Cem_prime, Ceystar_prime, Ced_prime, Cedstar_prime = cons_vals
+
+        # compute spending on goods
+        vg_vals = self.comp_vg(pe, tb_mat, j_vals, cons_vals, tax, region_data)
+        vgfin_vals = self.comp_vgfin(pe, tb_mat, vg_vals, j_vals, tax, region_data)
+        Vg, Vg_prime, Vgstar, Vgstar_prime = vgfin_vals
+
+        # compute labour used in goods production
+        lg_vals = self.comp_lg(pe, tb_mat, cons_vals, tax, region_data)
+
+        # terms that enter welfare
+        delta_vals = self.comp_delta(pe, tb_mat, te, phi, Qeworld_prime, lg_vals, j_vals, vgfin_vals, cons_vals, tax,
+                                     region_data)
+        delta_Le, delta_Lestar, delta_U, delta_Vg, delta_Vgstar, delta_UCed, delta_UCedstar = delta_vals
+
+        # measure welfare and welfare with no emission externality
+        welfare = delta_U / Vg * 100 -  lamb* abs(
+                    Cey_prime + Cex_prime + Cem_prime + Ceystar_prime + Ced_prime + Cedstar_prime - Qeworld_prime)
+        welfare_noexternality = (delta_U + phi * (Qeworld_prime - region_data['Qeworld'])) / Vg * 100
+        if tax == 'global':
+            welfare = delta_U / (Vg + Vgstar) * 100
+            welfare_noexternality = (delta_U + phi * (Qeworld_prime - region_data['Qeworld'])) / (Vg + Vgstar) * 100
+
+        return welfare
+
+    # def comp_utility(self, pe, tb_mat, te, phi, Qeworld_prime, lg_vals, j_vals, vg):
 
     # compute all values of interest
     def comp_all(self, pe, te, tb_mat, phi, tax, region_data):
@@ -241,9 +289,10 @@ class taxModel:
         # compute marginal leakage
         leak, leakstar = self.comp_mleak(pe, tb_mat, j_vals, cons_vals, tax)
 
-        results = self.assign_val(pe, tb_mat, te, phi, Qeworld_prime, ve_vals, vg_vals, vgfin_vals, delta_vals, chg_vals,
-                             leak_vals, lg_vals, subsidy_ratio, Qe_vals, welfare, welfare_noexternality, j_vals,
-                             cons_vals, leak, leakstar)
+        results = self.assign_val(pe, tb_mat, te, phi, Qeworld_prime, ve_vals, vg_vals, vgfin_vals, delta_vals,
+                                  chg_vals,
+                                  leak_vals, lg_vals, subsidy_ratio, Qe_vals, welfare, welfare_noexternality, j_vals,
+                                  cons_vals, leak, leakstar)
 
         return results
 
@@ -269,7 +318,7 @@ class taxModel:
         g_pe = self.g(pe)
 
         jxbar_prime = g_petb ** (-theta) * Cex / (
-                    g_petb ** (-theta) * Cex + (g_pe + tb_mat[0] * self.gprime(pe)) ** (-theta) * Ceystar)
+                g_petb ** (-theta) * Cex + (g_pe + tb_mat[0] * self.gprime(pe)) ** (-theta) * Ceystar)
         j0_prime = g_petb ** (-theta) * Cex / (g_petb ** (-theta) * Cex + g_pe ** (-theta) * Ceystar)
         jmbar_hat = 1
 
@@ -435,7 +484,7 @@ class taxModel:
 
         # Cey*, foreign production for foreign consumption
         Ceystar_prime = self.D(pe) / self.D(1) * region_data['Ceystar'] * (
-                    (1 - jxbar_prime) / (1 - region_data['jxbar'])) ** (1 - sigmatilde)
+                (1 - jxbar_prime) / (1 - region_data['jxbar'])) ** (1 - sigmatilde)
 
         return Cey_prime, Cex1_prime, Cex2_prime, Cex_prime, Cem_prime, Ceystar_prime, Ced_prime, Cedstar_prime
 
@@ -456,7 +505,7 @@ class taxModel:
 
         ## Value of exports for unilateral optimal
         Vgx1_prime = (self.g(pe + tb_mat[0]) / self.g(1)) ** (1 - sigma) * (j0_prime / region_data['jxbar']) ** (
-                    1 - sigmatilde) * Vgx
+                1 - sigmatilde) * Vgx
 
         pterm = (self.g(pe) / self.g(1)) ** (1 - sigma) * Vgx
         num = (1 - j0_prime) ** (1 - sigmatilde) - (1 - jxbar_prime) ** (1 - sigmatilde)
@@ -501,7 +550,7 @@ class taxModel:
             # value of home and foreign goods
             Vgy = region_data['Cey'] * scale
             Vgy_prime = (self.g(pe + tb_mat[0]) / self.g(1)) ** (1 - sigma) * jmbar_hat ** (
-                        1 + (1 - sigma) / theta) * Vgy
+                    1 + (1 - sigma) / theta) * Vgy
             Vg_prime = Vgy_prime + Vgm_prime
 
         # foreign spending on goods
@@ -758,9 +807,11 @@ class taxModel:
 
         if tax == 'Unilateral':
             epsilonDstar = abs(pe * Dprime_pe / D_pe)
+            dcezdpe = abs(Dprime_pe / D_pe * Ceystar_prime - sigmaE * Cedstar_prime)
             S = self.g(pe + tb_mat[0]) / self.gprime(pe + tb_mat[0]) * Cex2_prime - Vgx2_prime
             numerator = phi * epsilonSstartilde * Qestar_prime - sigma * self.gprime(pe) * S / self.g(pe)
             denominator = epsilonSstar * Qestar_prime + epsilonDstar * Ceystar_prime + sigmaE * Cedstar_prime
+            denominator = epsilonSstar * Qestar_prime + dcezdpe * pe
             # border adjustment = consumption wedge
             diff1 = tb_mat[0] * denominator - numerator
 
@@ -832,7 +883,6 @@ class taxModel:
             diff1 = tb_mat[0] * denominator - numerator
             # border rebate for exports tb[1] * tb[0] = leakage * tc
             diff2 = (tb_mat[1] * tb_mat[0]) * denominator - leakstar * numerator
-
 
         return diff, diff1, diff2
 

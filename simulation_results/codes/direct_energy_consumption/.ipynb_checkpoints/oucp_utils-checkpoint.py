@@ -187,6 +187,63 @@ class taxModel:
         if filename != "":
             df.to_csv(filename, header=True)
         return df
+    
+    # compute welfare
+    def comp_welfare(self, p, phi, tax, region_data):
+        pe = p[0]
+        tb_mat = p[1:]
+        te = phi
+        if tax == 'purete':
+            te = p[1]
+            tb_mat = [0,1]
+
+        ## compute extraction tax, and import/export thresholds
+        te, tb_mat, j_vals = self.comp_jbar(pe, tb_mat, te, region_data, tax, phi)
+        j0_prime, jxbar_prime, jmbar_hat, jmbar_prime = j_vals
+
+        # compute extraction values
+        Qe_vals = self.comp_qe(tax, pe, tb_mat, te, region_data)
+        Qe_prime, Qestar_prime, Qes, Qestars = Qe_vals
+        Qeworld_prime = Qe_prime + Qestar_prime
+
+        # compute consumption values
+        cons_vals = self.comp_ce(pe, tb_mat, j_vals, tax, region_data)
+        Cey_prime, Cex1_prime, Cex2_prime, Cex_prime, Cem_prime, Ceystar_prime, Ced_prime, Cedstar_prime = cons_vals
+        Gestar_prime = Ceystar_prime + Cem_prime + Cedstar_prime
+        Cestar_prime = Ceystar_prime + Cex_prime + Cedstar_prime
+
+        # compute spending on goods
+        vg_vals = self.comp_vg(pe, tb_mat, j_vals, cons_vals, tax, region_data)
+        vgfin_vals = self.comp_vgfin(pe, tb_mat, vg_vals, j_vals, tax, region_data)
+        Vg, Vg_prime, Vgstar, Vgstar_prime = vgfin_vals
+
+        subsidy_ratio = 1 - ((1 - jxbar_prime) * j0_prime / ((1 - j0_prime) * jxbar_prime)) ** (1 / self.theta)
+
+        # compute value of energy used
+        ve_vals = self.comp_ve(pe, tb_mat, cons_vals, tax)
+
+        # compute labour used in goods production
+        lg_vals = self.comp_lg(pe, tb_mat, cons_vals, tax, region_data)
+
+        # compute leakage values
+        leak_vals = self.comp_leak(Qestar_prime, Gestar_prime, Cestar_prime, Qeworld_prime, region_data)
+
+        # terms that enter welfare
+        delta_vals = self.comp_delta(pe, tb_mat, te, phi, Qeworld_prime, lg_vals, j_vals, vgfin_vals, cons_vals, tax,
+                                     region_data)
+        delta_Le, delta_Lestar, delta_U, delta_Vg, delta_Vgstar, delta_UCed, delta_UCedstar = delta_vals
+
+        # compute changes from the baseline
+        chg_vals = self.comp_chg(Qestar_prime, Gestar_prime, Cestar_prime, Qeworld_prime, region_data)
+
+        # measure welfare and welfare with no emission externality
+        welfare = delta_U / Vg * 100
+        welfare_noexternality = (delta_U + phi * (Qeworld_prime - region_data['Qeworld'])) / Vg * 100
+        if tax == 'global':
+            welfare = delta_U / (Vg + Vgstar) * 100
+            welfare_noexternality = (delta_U + phi * (Qeworld_prime - region_data['Qeworld'])) / (Vg + Vgstar) * 100
+
+        return welfare
 
 
     # compute all values of interest
