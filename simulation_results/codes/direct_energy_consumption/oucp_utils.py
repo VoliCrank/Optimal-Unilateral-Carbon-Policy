@@ -163,6 +163,10 @@ class taxModel:
 
         return diff, diff1, diff2
 
+
+    def comp_cons_eq(self, pe, te, tb_mat, phi, tax, region_data):
+        return self.comp_obj(pe, te, tb_mat, phi, tax, region_data)[0]
+
     def retrieve(self, filename=""):
         filled_results = []
         for price_scenario in self.res:
@@ -191,14 +195,14 @@ class taxModel:
         return df
 
     # compute welfare
-    def comp_welfare(self, p, phi, tax, region_data):
-        pe = p[0]
-        tb_mat = p[1:]
-        lamb = p[-1]
+    def comp_welfare(self, tb_mat, phi, tax, region_data):
+
         te = phi
         if tax == 'purete':
-            te = p[1]
+            te = p[0]
             tb_mat = [0, 1]
+
+        pe = fsolve(self.comp_cons_eq, [1], args = (te, tb_mat, phi, tax, region_data))[0]
 
         ## compute extraction tax, and import/export thresholds
         te, tb_mat, j_vals = self.comp_jbar(pe, tb_mat, te, region_data, tax, phi)
@@ -226,8 +230,7 @@ class taxModel:
         delta_Le, delta_Lestar, delta_U, delta_Vg, delta_Vgstar, delta_UCed, delta_UCedstar = delta_vals
 
         # measure welfare and welfare with no emission externality
-        welfare = delta_U / Vg * 100 -  lamb* abs(
-                    Cey_prime + Cex_prime + Cem_prime + Ceystar_prime + Ced_prime + Cedstar_prime - Qeworld_prime)
+        welfare = delta_U / Vg * 100
         welfare_noexternality = (delta_U + phi * (Qeworld_prime - region_data['Qeworld'])) / Vg * 100
         if tax == 'global':
             welfare = delta_U / (Vg + Vgstar) * 100
@@ -290,8 +293,7 @@ class taxModel:
         leak, leakstar = self.comp_mleak(pe, tb_mat, j_vals, cons_vals, tax)
 
         results = self.assign_val(pe, tb_mat, te, phi, Qeworld_prime, ve_vals, vg_vals, vgfin_vals, delta_vals,
-                                  chg_vals,
-                                  leak_vals, lg_vals, subsidy_ratio, Qe_vals, welfare, welfare_noexternality, j_vals,
+                                  chg_vals, leak_vals, lg_vals, subsidy_ratio, Qe_vals, welfare, welfare_noexternality, j_vals,
                                   cons_vals, leak, leakstar)
 
         return results
@@ -807,10 +809,10 @@ class taxModel:
 
         if tax == 'Unilateral':
             epsilonDstar = abs(pe * Dprime_pe / D_pe)
-            dcezdpe = abs(Dprime_pe / D_pe * Ceystar_prime - sigmaE * Cedstar_prime)
+            dcezdpe = abs(Dprime_pe / D_pe * Ceystar_prime - sigmaE * Cedstar_prime / pe)
             S = self.g(pe + tb_mat[0]) / self.gprime(pe + tb_mat[0]) * Cex2_prime - Vgx2_prime
             numerator = phi * epsilonSstartilde * Qestar_prime - sigma * self.gprime(pe) * S / self.g(pe)
-            denominator = epsilonSstar * Qestar_prime + epsilonDstar * Ceystar_prime + sigmaE * Cedstar_prime
+            #denominator = epsilonSstar * Qestar_prime + epsilonDstar * Ceystar_prime + sigmaE * Cedstar_prime
             denominator = epsilonSstar * Qestar_prime + dcezdpe * pe
             # border adjustment = consumption wedge
             diff1 = tb_mat[0] * denominator - numerator
@@ -884,7 +886,7 @@ class taxModel:
             # border rebate for exports tb[1] * tb[0] = leakage * tc
             diff2 = (tb_mat[1] * tb_mat[0]) * denominator - leakstar * numerator
 
-        return diff, diff1, diff2
+        return diff * 100, diff1, diff2
 
     # assign values to return later
     def assign_val(self, pe, tb_mat, te, phi, Qeworld_prime, ve_vals, vg_vals, vgfin_vals, delta_vals, chg_vals,
