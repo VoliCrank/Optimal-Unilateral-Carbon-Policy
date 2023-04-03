@@ -175,8 +175,8 @@ class taxModel:
             prices = price_scenario['prices']
 
             for (phi, (pe, tb, prop, te, conv)) in prices:
-                tb_mat = [tb, prop]
-                res = self.comp_all(pe, te, tb_mat, phi, tax, region_data)
+                tb_mat = [abs(tb), abs(prop)]
+                res = self.comp_all(abs(pe), te, tb_mat, phi, tax, region_data)
                 res['regionbase'] = region_data['regionbase']
                 res['tax_sce'] = tax
                 res['conv'] = conv
