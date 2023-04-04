@@ -37,8 +37,9 @@ class taxModel:
                 self.res.append(res)
 
     def solveOne(self, phi, tax, region_data, pe, tb, prop, te):
+        init_guess = [pe,tb,prop]
         if tax == 'global':
-            res = self.solve_obj(phi, tax, region_data)
+            res = self.solve_obj(phi, tax, region_data, init_guess = init_guess)
             opt_val = res[0]
 
             tb = 0
@@ -46,7 +47,7 @@ class taxModel:
             prop = 0
 
         elif tax in ['Unilateral', 'puretc', 'puretp', 'EC_hybrid']:
-            res = self.solve_obj(phi, tax, region_data)
+            res = self.solve_obj(phi, tax, region_data, init_guess = init_guess)
             opt_val = res[0]
 
             tb = opt_val[1]
@@ -71,7 +72,7 @@ class taxModel:
             te = tb
 
         elif tax == 'EP_hybrid':
-            res = self.solve_obj(phi, tax, region_data)
+            res = self.solve_obj(phi, tax, region_data, init_guess = init_guess)
             opt_val = res[0]
 
             tb = opt_val[1]
@@ -91,6 +92,7 @@ class taxModel:
             # tax scenario incorrect
             res = [0, 0, 0]
             opt_val = [0]
+            print('tax scenario', tax, 'not implemented')
 
         pe = opt_val[0]
         conv = res[2]
@@ -164,9 +166,6 @@ class taxModel:
         return diff, diff1, diff2
 
 
-    def comp_cons_eq(self, pe, te, tb_mat, phi, tax, region_data):
-        return self.comp_obj(pe, te, tb_mat, phi, tax, region_data)[0]
-
     def retrieve(self, filename=""):
         filled_results = []
         for price_scenario in self.res:
@@ -194,12 +193,16 @@ class taxModel:
             df.to_csv(filename, header=True)
         return df
 
+    # returns the difference between world energy consumption and extraction
+    def comp_cons_eq(self, pe, te, tb_mat, phi, tax, region_data):
+        return self.comp_obj(pe, te, tb_mat, phi, tax, region_data)[0]
+
     # compute welfare
     def comp_welfare(self, tb_mat, phi, tax, region_data):
 
         te = phi
         if tax == 'purete':
-            te = p[0]
+            te = tb_mat[0]
             tb_mat = [0, 1]
 
         pe = fsolve(self.comp_cons_eq, [1], args = (te, tb_mat, phi, tax, region_data))[0]
@@ -214,7 +217,6 @@ class taxModel:
 
         # compute consumption values
         cons_vals = self.comp_ce(pe, tb_mat, j_vals, tax, region_data)
-        Cey_prime, Cex1_prime, Cex2_prime, Cex_prime, Cem_prime, Ceystar_prime, Ced_prime, Cedstar_prime = cons_vals
 
         # compute spending on goods
         vg_vals = self.comp_vg(pe, tb_mat, j_vals, cons_vals, tax, region_data)
@@ -231,14 +233,10 @@ class taxModel:
 
         # measure welfare and welfare with no emission externality
         welfare = delta_U / Vg * 100
-        welfare_noexternality = (delta_U + phi * (Qeworld_prime - region_data['Qeworld'])) / Vg * 100
         if tax == 'global':
             welfare = delta_U / (Vg + Vgstar) * 100
-            welfare_noexternality = (delta_U + phi * (Qeworld_prime - region_data['Qeworld'])) / (Vg + Vgstar) * 100
 
         return welfare
-
-    # def comp_utility(self, pe, tb_mat, te, phi, Qeworld_prime, lg_vals, j_vals, vg):
 
     # compute all values of interest
     def comp_all(self, pe, te, tb_mat, phi, tax, region_data):
