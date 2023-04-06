@@ -37,10 +37,10 @@ class taxModel:
                 self.res.append(res)
 
     # solve one tax scenario, given phi, tax, region_data and some initial guess of price and taxes
-    def solveOne(self, phi, tax, region_data, pe = 1, tb = 0, prop = 0, te = 0):
-        init_guess = [pe,tb,prop]
+    def solveOne(self, phi, tax, region_data, pe=1, tb=0, prop=0, te=0):
+        init_guess = [pe, tb, prop]
         if tax == 'global':
-            res = self.solve_obj(phi, tax, region_data, init_guess = init_guess)
+            res = self.solve_obj(phi, tax, region_data, init_guess=init_guess)
             opt_val = res[0]
 
             tb = 0
@@ -48,7 +48,7 @@ class taxModel:
             prop = 0
 
         elif tax in ['Unilateral', 'puretc', 'puretp', 'EC_hybrid']:
-            res = self.solve_obj(phi, tax, region_data, init_guess = init_guess)
+            res = self.solve_obj(phi, tax, region_data, init_guess=init_guess)
             opt_val = res[0]
 
             tb = opt_val[1]
@@ -73,7 +73,7 @@ class taxModel:
             te = tb
 
         elif tax == 'EP_hybrid':
-            res = self.solve_obj(phi, tax, region_data, init_guess = init_guess)
+            res = self.solve_obj(phi, tax, region_data, init_guess=init_guess)
             opt_val = res[0]
 
             tb = opt_val[1]
@@ -99,10 +99,10 @@ class taxModel:
         conv = res[2]
         return pe, tb, prop, te, conv
 
-
     # solve system of first order conditions, using some initial guess, with the fsolve function
-    def solve_obj(self, phi, tax, region_data, init_guess=[1, 0, 0.5], verbose=True, second_try=True, tol = 1e-10):
-        res = fsolve(self.obj_system, init_guess, args=(phi, tax, region_data), full_output=True, maxfev=100000, xtol = tol)
+    def solve_obj(self, phi, tax, region_data, init_guess=[1, 0, 0.5], verbose=True, second_try=True, tol=1e-10):
+        res = fsolve(self.obj_system, init_guess, args=(phi, tax, region_data), full_output=True, maxfev=100000,
+                     xtol=tol)
         if res[2] != 1:
             if verbose:
                 print("did not converge, tax is", tax, "region is", region_data['regionbase'], 'phi is', phi,
@@ -113,7 +113,6 @@ class taxModel:
                 if res[2] == 1 and verbose:
                     print('converged on second try')
         return res
-
 
     # compute system of first order conditions for the case of pure extraction tax
     def te_obj(self, p, phi, tax, region_data):
@@ -165,10 +164,9 @@ class taxModel:
             Vgx2_prime = pterm * num / denum
 
         diff, diff1, diff2 = self.comp_diff(pe, tb_mat, te, phi, Qes, Qestars, Qe_prime, Qestar_prime, j_vals,
-                                            cons_vals,Vgx2_prime, tax)
+                                            cons_vals, Vgx2_prime, tax)
 
         return diff, diff1, diff2
-
 
     # retrieve results after solving the model, optionally store results to csv
     def retrieve(self, filename=""):
@@ -194,7 +192,6 @@ class taxModel:
         cols.pop(cols.index('regionbase'))
         cols.pop(cols.index('tax_sce'))
         df = df[['regionbase', 'tax_sce'] + cols]
-        df
         if filename != "":
             df.to_csv(filename, header=True)
             print('file saved to', filename)
@@ -212,7 +209,7 @@ class taxModel:
             te = tb_mat[0]
             tb_mat = [0, 1]
 
-        pe = fsolve(self.comp_cons_eq, [1], args = (te, tb_mat, phi, tax, region_data))[0]
+        pe = fsolve(self.comp_cons_eq, [1], args=(te, tb_mat, phi, tax, region_data))[0]
 
         ## compute extraction tax, and import/export thresholds
         te, tb_mat, j_vals = self.comp_jbar(pe, tb_mat, te, region_data, tax, phi)
@@ -220,7 +217,6 @@ class taxModel:
         # compute extraction values
         Qe_vals = self.comp_qe(tax, pe, tb_mat, te, region_data)
         Qe_prime, Qestar_prime, Qes, Qestars = Qe_vals
-        Qeworld_prime = Qe_prime + Qestar_prime
 
         # compute consumption values
         cons_vals = self.comp_ce(pe, tb_mat, j_vals, tax, region_data)
@@ -234,9 +230,9 @@ class taxModel:
         lg_vals = self.comp_lg(pe, tb_mat, cons_vals, tax, region_data)
 
         # terms that enter welfare
-        delta_vals = self.comp_delta(pe, tb_mat, te, phi, Qeworld_prime, lg_vals, j_vals, vgfin_vals, cons_vals, tax,
+        delta_vals = self.comp_delta(pe, tb_mat, te, phi, Qes, Qestars, lg_vals, j_vals, vgfin_vals, cons_vals, tax,
                                      region_data)
-        delta_Le, delta_Lestar, delta_U, delta_Vg, delta_Vgstar, delta_UCed, delta_UCedstar = delta_vals
+        delta_Le, delta_Lestar, delta_U, delta_Vg, delta_Vgstar, delta_UCed, delta_UCedstar, delta_emissions = delta_vals
 
         # normalize welfare to our preferred measure, does not affect the minimizer
         welfare = delta_U / Vg * 100
@@ -280,25 +276,26 @@ class taxModel:
         leak_vals = self.comp_leak(Qestar_prime, Gestar_prime, Cestar_prime, Qeworld_prime, region_data)
 
         # terms that enter welfare
-        delta_vals = self.comp_delta(pe, tb_mat, te, phi, Qeworld_prime, lg_vals, j_vals, vgfin_vals, cons_vals, tax,
+        delta_vals = self.comp_delta(pe, tb_mat, te, phi, Qes, Qestars, lg_vals, j_vals, vgfin_vals, cons_vals, tax,
                                      region_data)
-        delta_Le, delta_Lestar, delta_U, delta_Vg, delta_Vgstar, delta_UCed, delta_UCedstar = delta_vals
+        delta_Le, delta_Lestar, delta_U, delta_Vg, delta_Vgstar, delta_UCed, delta_UCedstar, delta_emissions = delta_vals
 
         # compute changes from the baseline
         chg_vals = self.comp_chg(Qestar_prime, Gestar_prime, Cestar_prime, Qeworld_prime, region_data)
 
         # measure welfare and welfare with no emission externality
         welfare = delta_U / Vg * 100
-        welfare_noexternality = (delta_U + phi * (Qeworld_prime - region_data['Qeworld'])) / Vg * 100
+        welfare_noexternality = (delta_U + phi * delta_emissions) / Vg * 100
         if tax == 'global':
             welfare = delta_U / (Vg + Vgstar) * 100
-            welfare_noexternality = (delta_U + phi * (Qeworld_prime - region_data['Qeworld'])) / (Vg + Vgstar) * 100
+            welfare_noexternality = (delta_U + phi * delta_emissions) / (Vg + Vgstar) * 100
 
         # compute marginal leakage
         leak, leakstar = self.comp_mleak(pe, tb_mat, j_vals, cons_vals, tax)
 
         results = self.assign_val(pe, tb_mat, te, phi, Qeworld_prime, ve_vals, vg_vals, vgfin_vals, delta_vals,
-                                  chg_vals, leak_vals, lg_vals, subsidy_ratio, Qe_vals, welfare, welfare_noexternality, j_vals,
+                                  chg_vals, leak_vals, lg_vals, subsidy_ratio, Qe_vals, welfare, welfare_noexternality,
+                                  j_vals,
                                   cons_vals, leak, leakstar)
 
         return results
@@ -407,7 +404,7 @@ class taxModel:
         Qes = []
         Qe_prime = 0
         for i in range(len(epsilonSvec)):
-            petbte = max(pe + tb_mat[0] - te * epsilonSvec[i][1],0)
+            petbte = max(pe + tb_mat[0] - te * epsilonSvec[i][1], 0)
             epsS = epsilonSvec[i][0]
             prop = epsilonSvec[i][2]
             Qe_r = region_data['Qe'] * prop * petbte ** epsS
@@ -421,7 +418,7 @@ class taxModel:
             prop = epsilonSstarvec[i][2]
             Qestar_r = region_data['Qestar'] * prop * pe ** epsSstar
             if tax == 'global':
-                petbte = max(pe - te * epsilonSstarvec[i][1],0)
+                petbte = max(pe - te * epsilonSstarvec[i][1], 0)
                 Qestar_r = region_data['Qestar'] * prop * petbte ** epsSstar
             Qestar_prime += Qestar_r
             Qestars.append(Qestar_r)
@@ -623,7 +620,7 @@ class taxModel:
     #        Qeworld_prime, lg_vals (labour in Home and Foreign production)
     # output: compute change in Le/Lestar (labour in home/foreign extraction)
     #         change home utility
-    def comp_delta(self, pe, tb_mat, te, phi, Qeworld_prime, lg_vals, j_vals, vgfin_vals, cons_vals, tax, region_data):
+    def comp_delta(self, pe, tb_mat, te, phi, Qes, Qestars, lg_vals, j_vals, vgfin_vals, cons_vals, tax, region_data):
         # unpack parameters
         Lg, Lgstar, Lg_prime, Lgstar_prime = lg_vals
         Vg, Vg_prime, Vgstar, Vgstar_prime = vgfin_vals
@@ -632,18 +629,19 @@ class taxModel:
         epsilonSvec, epsilonSstarvec = self.epsilonSvec, self.epsilonSstarvec
         theta, sigma, sigmaE = self.theta, self.sigma, self.sigmaE
 
-        # change in labour in home/foreign extraction
+        # change in labour in home/foreign extraction, total world emissions (different from total world extraction)
         delta_Le = 0
         delta_Lestar = 0
+        emissions = 0
+        emissions_baseline = 0
         for i in range((len(epsilonSvec))):
             epsilonS_r = epsilonSvec[i][0]
             epsilonSstar_r = epsilonSstarvec[i][0]
             hr = epsilonSvec[i][1]
+            hrstar = epsilonSstarvec[i][1]
 
             # price faced by energy extractors
-            petbte = pe + tb_mat[0] - te * hr
-            if petbte < 0:
-                petbte = 0
+            petbte = max(pe + tb_mat[0] - te * hr, 0)
 
             Qe_r = epsilonSvec[i][2] * region_data['Qe']
             Qestar_r = epsilonSstarvec[i][2] * region_data['Qestar']
@@ -654,9 +652,16 @@ class taxModel:
             else:
                 delta_Lestar += epsilonSstar_r / (epsilonSstar_r + 1) * (petbte ** (epsilonSstar_r + 1) - 1) * Qestar_r
 
+            emissions += Qes[i] * hr
+            emissions += Qestars[i] * hrstar
+            emissions_baseline += Qe_r * hr
+            emissions_baseline += Qestar_r * hrstar
+
+        # change in world emissions, same as change in world extraction if only one energy source
+        delta_emissions = emissions - emissions_baseline
+
         # term that is common across all delta_U calculations
-        const = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) - phi * (
-                Qeworld_prime - region_data['Qeworld'])
+        const = -delta_Le - delta_Lestar - (Lg_prime - Lg) - (Lgstar_prime - Lgstar) - phi * delta_emissions
 
         # values in unilateral optimal, also applies to some of the constrained policies
         delta_Vg = -math.log(self.g(pe + tb_mat[0]) / self.g(1)) * Vg
@@ -694,7 +699,7 @@ class taxModel:
 
         delta_U = delta_Vg + delta_Vgstar + const + delta_UCedstar + delta_UCed
 
-        return delta_Le, delta_Lestar, delta_U, delta_Vg, delta_Vgstar, delta_UCed, delta_UCedstar
+        return delta_Le, delta_Lestar, delta_U, delta_Vg, delta_Vgstar, delta_UCed, delta_UCedstar, delta_emissions
 
     # input: Qestar_prime (foregin extraction), Gestar_prime (foreign energy use in production)
     #        Cestar_prime (foregin energy consumption), Qeworld_prime (world extraction), df
@@ -818,7 +823,7 @@ class taxModel:
             dcezdpe = abs(Dprime_pe / D_pe * Ceystar_prime - sigmaE * Cedstar_prime / pe)
             S = self.g(pe + tb_mat[0]) / self.gprime(pe + tb_mat[0]) * Cex2_prime - Vgx2_prime
             numerator = phi * epsilonSstartilde * Qestar_prime - sigma * self.gprime(pe) * S / self.g(pe) * pe
-            denominator = epsilonSstartilde * Qestar_prime + dcezdpe * pe
+            denominator = epsilonSstar * Qestar_prime + dcezdpe * pe
             # border adjustment = consumption wedge
             diff1 = tb_mat[0] * denominator - numerator
 
@@ -903,7 +908,7 @@ class taxModel:
         Vg, Vg_prime, Vgstar, Vgstar_prime = vgfin_vals
         Lg, Lgstar, Lg_prime, Lgstar_prime = lg_vals
         leakage1, leakage2, leakage3 = leak_vals
-        delta_Le, delta_Lestar, delta_U, delta_Vg, delta_Vgstar, delta_UCed, delta_UCedstar = delta_vals
+        delta_Le, delta_Lestar, delta_U, delta_Vg, delta_Vgstar, delta_UCed, delta_UCedstar, delta_emissions = delta_vals
         Ve_prime, Vestar_prime = ve_vals
         Qe_prime, Qestar_prime, Qes, Qestars = Qe_vals
         chg_extraction, chg_production, chg_consumption, chg_Qeworld = chg_vals
