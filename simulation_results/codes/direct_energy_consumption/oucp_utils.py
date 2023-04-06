@@ -37,7 +37,7 @@ class taxModel:
                 self.res.append(res)
 
     # solve one tax scenario, given phi, tax, region_data and some initial guess of price and taxes
-    def solveOne(self, phi, tax, region_data, pe, tb, prop, te):
+    def solveOne(self, phi, tax, region_data, pe = 1, tb = 0, prop = 0, te = 0):
         init_guess = [pe,tb,prop]
         if tax == 'global':
             res = self.solve_obj(phi, tax, region_data, init_guess = init_guess)
@@ -101,8 +101,8 @@ class taxModel:
 
 
     # solve system of first order conditions, using some initial guess, with the fsolve function
-    def solve_obj(self, phi, tax, region_data, init_guess=[1, 0, 0.5], verbose=True, second_try=True):
-        res = fsolve(self.obj_system, init_guess, args=(phi, tax, region_data), full_output=True, maxfev=100000)
+    def solve_obj(self, phi, tax, region_data, init_guess=[1, 0, 0.5], verbose=True, second_try=True, tol = 1e-10):
+        res = fsolve(self.obj_system, init_guess, args=(phi, tax, region_data), full_output=True, maxfev=100000, xtol = tol)
         if res[2] != 1:
             if verbose:
                 print("did not converge, tax is", tax, "region is", region_data['regionbase'], 'phi is', phi,
@@ -811,11 +811,9 @@ class taxModel:
         D_pe = self.D(pe)
 
         if tax == 'Unilateral':
-            epsilonDstar = abs(pe * Dprime_pe / D_pe)
             dcezdpe = abs(Dprime_pe / D_pe * Ceystar_prime - sigmaE * Cedstar_prime / pe)
             S = self.g(pe + tb_mat[0]) / self.gprime(pe + tb_mat[0]) * Cex2_prime - Vgx2_prime
-            numerator = phi * epsilonSstartilde * Qestar_prime - sigma * self.gprime(pe) * S / self.g(pe)
-            #denominator = epsilonSstar * Qestar_prime + epsilonDstar * Ceystar_prime + sigmaE * Cedstar_prime
+            numerator = phi * epsilonSstartilde * Qestar_prime - sigma * self.gprime(pe) * S / self.g(pe) * pe
             denominator = epsilonSstar * Qestar_prime + dcezdpe * pe
             # border adjustment = consumption wedge
             diff1 = tb_mat[0] * denominator - numerator
