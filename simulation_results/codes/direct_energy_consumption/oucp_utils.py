@@ -59,7 +59,7 @@ class taxModel:
                 te = tb
 
         elif tax == 'purete':
-            res = fsolve(self.te_obj, [1, 0], args=(phi, tax, region_data), full_output=True, maxfev=100000)
+            res = fsolve(self.te_obj, [pe, te], args=(phi, tax, region_data), full_output=True, maxfev=100000)
             opt_val = res[0]
             te = opt_val[1]
 
@@ -386,11 +386,11 @@ class taxModel:
 
         return te, tb_mat, j_vals
 
-    # input: j0_prime, jxbar_prime, theta and sigmastar
+    # input: j0_prime, jxbar_prime (export thresholds)
     # output: compute values for the incomplete beta functions, from 0 to j0_prime and from 0 to jxbar_prime
     def incomp_betas(self, j0_prime, jxbar_prime):
-        def beta_fun(i, theta, sigmastar):
-            return i ** ((1 + theta) / theta - 1) * (1 - i) ** ((theta - sigmastar) / theta - 1)
+        def beta_fun(i, theta, sigma):
+            return i ** ((1 + theta) / theta - 1) * (1 - i) ** ((theta - sigma) / theta - 1)
 
         beta_fun_val1 = quad(beta_fun, 0, j0_prime, args=(self.theta, self.sigma))[0]
         beta_fun_val2 = quad(beta_fun, 0, jxbar_prime, args=(self.theta, self.sigma))[0]
