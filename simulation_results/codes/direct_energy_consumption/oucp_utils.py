@@ -78,7 +78,7 @@ class taxModel:
 
             tb = opt_val[1]
             te = opt_val[2]
-            prop = 0
+            prop = te
 
         elif tax == 'EPC_hybrid':
             # opt_val = self.min_obj(props, tbs, pes, phi, tax, region_data)
@@ -180,7 +180,7 @@ class taxModel:
 
             for (phi, (pe, tb, prop, te, conv)) in prices:
                 tb_mat = [abs(tb), abs(prop)]
-                res = self.comp_all(abs(pe), te, tb_mat, phi, tax, region_data)
+                res = self.comp_all(abs(pe), abs(te), tb_mat, phi, tax, region_data)
                 res['regionbase'] = region_data['regionbase']
                 res['tax_sce'] = tax
                 res['conv'] = conv
@@ -194,8 +194,10 @@ class taxModel:
         cols.pop(cols.index('regionbase'))
         cols.pop(cols.index('tax_sce'))
         df = df[['regionbase', 'tax_sce'] + cols]
+        df
         if filename != "":
             df.to_csv(filename, header=True)
+            print('file saved to', filename)
         return df
 
     # returns the difference between world energy consumption and extraction
@@ -405,9 +407,7 @@ class taxModel:
         Qes = []
         Qe_prime = 0
         for i in range(len(epsilonSvec)):
-            petbte = pe + tb_mat[0] - te * epsilonSvec[i][1]
-            if petbte < 0:
-                petbte = 0
+            petbte = max(pe + tb_mat[0] - te * epsilonSvec[i][1],0)
             epsS = epsilonSvec[i][0]
             prop = epsilonSvec[i][2]
             Qe_r = region_data['Qe'] * prop * petbte ** epsS
@@ -421,7 +421,8 @@ class taxModel:
             prop = epsilonSstarvec[i][2]
             Qestar_r = region_data['Qestar'] * prop * pe ** epsSstar
             if tax == 'global':
-                Qestar_r = region_data['Qestar'] * prop * (pe - te * epsilonSstarvec[i][1]) ** epsSstar
+                petbte = max(pe - te * epsilonSstarvec[i][1],0)
+                Qestar_r = region_data['Qestar'] * prop * petbte ** epsSstar
             Qestar_prime += Qestar_r
             Qestars.append(Qestar_r)
 
@@ -794,6 +795,9 @@ class taxModel:
         Ceworld_prime = Cey_prime + Cex_prime + Cem_prime + Ceystar_prime + Ced_prime + Cedstar_prime
         Qeworld_prime = Qe_prime + Qestar_prime
 
+        if tax == 'global':
+            return Qeworld_prime - Ceworld_prime, 0, 0
+
         # compute marginal leakage
         leak, leakstar = self.comp_mleak(pe, tb_mat, j_vals, cons_vals, tax)
 
@@ -814,7 +818,7 @@ class taxModel:
             dcezdpe = abs(Dprime_pe / D_pe * Ceystar_prime - sigmaE * Cedstar_prime / pe)
             S = self.g(pe + tb_mat[0]) / self.gprime(pe + tb_mat[0]) * Cex2_prime - Vgx2_prime
             numerator = phi * epsilonSstartilde * Qestar_prime - sigma * self.gprime(pe) * S / self.g(pe) * pe
-            denominator = epsilonSstar * Qestar_prime + dcezdpe * pe
+            denominator = epsilonSstartilde * Qestar_prime + dcezdpe * pe
             # border adjustment = consumption wedge
             diff1 = tb_mat[0] * denominator - numerator
 
