@@ -36,6 +36,7 @@ class taxModel:
                 res = pd.Series({'region_data': region_data, 'tax': tax, 'prices': prices})
                 self.res.append(res)
 
+    # solve one tax scenario, given phi, tax, region_data and some initial guess of price and taxes
     def solveOne(self, phi, tax, region_data, pe, tb, prop, te):
         init_guess = [pe,tb,prop]
         if tax == 'global':
@@ -98,6 +99,8 @@ class taxModel:
         conv = res[2]
         return pe, tb, prop, te, conv
 
+
+    # solve system of first order conditions, using some initial guess, with the fsolve function
     def solve_obj(self, phi, tax, region_data, init_guess=[1, 0, 0.5], verbose=True, second_try=True):
         res = fsolve(self.obj_system, init_guess, args=(phi, tax, region_data), full_output=True, maxfev=100000)
         if res[2] != 1:
@@ -111,6 +114,8 @@ class taxModel:
                     print('converged on second try')
         return res
 
+
+    # compute system of first order conditions for the case of pure extraction tax
     def te_obj(self, p, phi, tax, region_data):
         p = abs(p)
         pe = p[0]
@@ -120,6 +125,7 @@ class taxModel:
 
         return diff, diff1
 
+    # compute system of first order conditions. 
     def obj_system(self, p, phi, tax, region_data):
         p = abs(p)
         pe = p[0]
@@ -131,9 +137,7 @@ class taxModel:
 
         return diff, diff1, diff2
 
-    # compute the objective value, currently the objective is to minimize difference between equilibrium condition
-    # which is equivalent to finding the root since we force their difference to be 0
-    # also saves optimal results in self.
+    # compute the objective value, currently the objective is to solve the equilibrium conditions
     def comp_obj(self, pe, te, tb_mat, phi, tax, region_data):
 
         ## compute extraction tax, and import/export thresholds
@@ -166,6 +170,7 @@ class taxModel:
         return diff, diff1, diff2
 
 
+    # retrieve results after solving the model, optionally store results to csv
     def retrieve(self, filename=""):
         filled_results = []
         for price_scenario in self.res:
@@ -197,7 +202,7 @@ class taxModel:
     def comp_cons_eq(self, pe, te, tb_mat, phi, tax, region_data):
         return self.comp_obj(pe, te, tb_mat, phi, tax, region_data)[0]
 
-    # compute welfare
+    # compute welfare subject to consumption equal to extraction constraint
     def comp_welfare(self, tb_mat, phi, tax, region_data):
 
         te = phi
@@ -231,14 +236,14 @@ class taxModel:
                                      region_data)
         delta_Le, delta_Lestar, delta_U, delta_Vg, delta_Vgstar, delta_UCed, delta_UCedstar = delta_vals
 
-        # measure welfare and welfare with no emission externality
+        # normalize welfare to our preferred measure, does not affect the minimizer
         welfare = delta_U / Vg * 100
         if tax == 'global':
             welfare = delta_U / (Vg + Vgstar) * 100
 
         return welfare
 
-    # compute all values of interest
+    # compute all values of interest (import/export thresholds, consumption values, welfare etc)
     def comp_all(self, pe, te, tb_mat, phi, tax, region_data):
 
         ## compute extraction tax, and import/export thresholds
