@@ -295,8 +295,7 @@ class taxModel:
 
         results = self.assign_val(pe, tb_mat, te, phi, Qeworld_prime, ve_vals, vg_vals, vgfin_vals, delta_vals,
                                   chg_vals, leak_vals, lg_vals, subsidy_ratio, Qe_vals, welfare, welfare_noexternality,
-                                  j_vals,
-                                  cons_vals, leak, leakstar)
+                                  j_vals, cons_vals, leak, leakstar)
 
         return results
 
@@ -515,6 +514,7 @@ class taxModel:
         denum = region_data['jxbar'] * (1 - region_data['jxbar']) ** ((1 - sigma) / theta)
         Vgx2_prime = pterm * num / denum
         Vgx_hat = (Vgx1_prime + Vgx2_prime) / Vgx
+        Vgm_temp = self.g(pe + tb_mat[0]) / self.gprime(pe + tb_mat[0])
 
         if tax != 'Unilateral':
             Vgx_hat = (self.g(pe) / self.g(1)) ** (1 - sigma)
@@ -522,6 +522,7 @@ class taxModel:
         if tax in ['puretp', 'EP_hybrid']:
             ve = pe + tb_mat[0]
             Vgx_hat = (self.g(ve) / self.g(1)) ** (1 - sigma) * (jxbar_prime / region_data['jxbar']) ** (1 - sigmatilde)
+            Vgm_temp = self.g(pe) / self.gprime(pe)
 
         if tax in ['PC_hybrid', 'EPC_hybrid']:
             ve = pe + tb_mat[0] - tb_mat[1] * tb_mat[0]
@@ -529,7 +530,7 @@ class taxModel:
 
         # final value of home export of good
         Vgx_prime = Vgx * Vgx_hat
-        Vgm_prime = self.g(pe + tb_mat[0]) / self.gprime(pe + tb_mat[0]) * Cem_prime
+        Vgm_prime = Vgm_temp * Cem_prime
         Vgystar_prime = self.g(pe) / self.gprime(pe) * Ceystar_prime
 
         return Vgy_prime, Vgm_prime, Vgx1_prime, Vgx2_prime, Vgx_prime, Vgystar_prime
